@@ -46,13 +46,24 @@ def list_into_bs_format(list: List[str], file_format: str = "lxml") -> Any:
     bs_list: Any = bs(string_object, file_format)
     return bs_list
 
-def get_doc_list(file_path: str, file_format: str):
-    """Obtain a the name of the documents inside a list inside a paste
-    (file_path) terminating in an specified file formar (file_format) like
-    .pdf or . png"""
+def get_doc_list(folder_path: str, file_format: str) -> List[str]:
+    """_summary_
+
+    Parameters
+    ----------
+    folder_path : str
+        Path to the folder containing the desired files
+    file_format : str
+        file format to find
+
+    Returns
+    -------
+    List[str]
+        A list containing all files with the desired file format inside the folder
+    """
     all_docs = []
     # Go through every file inside the desired file_path
-    for entry in os.listdir(file_path):
+    for entry in os.listdir(folder_path):
         # Verifies the final extension of the file
         if entry.endswith(file_format):
             all_docs = all_docs + [entry]

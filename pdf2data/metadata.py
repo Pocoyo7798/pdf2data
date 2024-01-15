@@ -143,3 +143,11 @@ class Metadata(BaseModel):
         self.year = year
         self.journal = journal
 
+    def update(self):
+        extension = os.path.splitext(self.file_path)[1]
+        if extension == "pdf":
+            self.get_api()
+        elif extension == "cermxml":
+            self.get_cerm()
+        else:
+            raise AttributeError("The file provided is not valid, choose a file in .pdf or .cermxml format")

@@ -34,6 +34,7 @@ setup(
     entry_points={
         'console_scripts': [
             'pdf2data=pdf2data.cli.cli:main',
+            'pdf2data_metadata=pdf2data.cli.metadata_finder:main'
         ],
     },
     install_requires=requirements,
