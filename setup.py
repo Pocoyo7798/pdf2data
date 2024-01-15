@@ -33,7 +33,7 @@ setup(
     description="Trnsforms pdf files into machine readable json files",
     entry_points={
         'console_scripts': [
-            'pdf2data=pdf2data.cli:main',
+            'pdf2data=pdf2data.cli.cli:main',
         ],
     },
     install_requires=requirements,
