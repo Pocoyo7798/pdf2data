@@ -4,8 +4,7 @@ from pdf2data.metadata import Metadata
 
 
 def test_pdf_file():
-    """Test getting references from a .pdf file
-    """
+    """Test getting references from a .pdf file"""
     file_path: str = str(
         importlib_resources.files("pdf2data") / "resources" / "test.pdf"
     )
@@ -13,9 +12,9 @@ def test_pdf_file():
     metadata.update()
     assert metadata.doi != None
 
+
 def test_cermxml_file():
-    """Test getting references from .cermxml file
-    """
+    """Test getting references from .cermxml file"""
     file_path: str = str(
         importlib_resources.files("pdf2data") / "resources" / "test.cermxml"
     )
