@@ -10,7 +10,7 @@ def test_pdf_file():
     )
     metadata: Metadata = Metadata(file_path=file_path)
     metadata.update()
-    assert metadata.doi != None
+    assert metadata.doi is not None
 
 
 def test_cermxml_file():

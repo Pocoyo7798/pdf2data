@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 from bs4 import BeautifulSoup as bs
 
