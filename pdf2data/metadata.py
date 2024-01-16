@@ -154,7 +154,6 @@ class Metadata(BaseModel):
 
     def update(self):
         extension = os.path.splitext(self.file_path)[1]
-        print(extension)
         if extension == ".pdf":
             self.get_api()
         elif extension == ".cermxml":
