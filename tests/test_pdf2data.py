@@ -6,7 +6,6 @@ import pytest
 
 from click.testing import CliRunner
 
-from pdf2data import pdf2data
 from pdf2data.cli import cli
 
 

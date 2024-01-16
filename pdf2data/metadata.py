@@ -28,7 +28,7 @@ class Metadata(BaseModel):
         with open(self.file_path, "r") as file:
             content = file.readlines()
         extension = os.path.splitext(self.file_path)[1]
-        if extension != "cermxml":
+        if extension != ".cermxml":
             raise AttributeError(f"A .cermxml file should be provided instead of a .{extension} file to use this method")
         content: str = "".join(content)
         bs_content: Any = bs(content, "lxml")
@@ -42,7 +42,7 @@ class Metadata(BaseModel):
         authors: List[str] = find_term_in_list(article_metadata, "string-name")
         keywords: List[str] = find_term_in_list(article_metadata, "kwd")
         pub_date: List[str] = article_metadata.find_all("pub-date")
-        pub_date: List[str] = find_term_in_list(pub_date)
+        pub_date: List[str] = list_into_bs_format(pub_date)
         year: List[str] = find_term_in_list(pub_date, "year")
         journal: List[str] = find_term_in_list(journal_metadata, "journal-title")
         if doi == ["Nothing Found"]:
@@ -113,7 +113,7 @@ class Metadata(BaseModel):
                     journal = [pdf_info_dic["journal"]]
         except Exception:
             print(f'The follwing doi raise an error: {doi[0]}')
-        metadata_values: set = set(title[0], doi[0], authors[0], year[0], journal[0])
+        metadata_values: set = set([title[0], doi[0], authors[0], year[0], journal[0]])
         if 'Nothing Found' in metadata_values:
             try:
                 pdf_info = subprocess.check_output(
@@ -145,9 +145,10 @@ class Metadata(BaseModel):
 
     def update(self):
         extension = os.path.splitext(self.file_path)[1]
-        if extension == "pdf":
+        print(extension)
+        if extension == ".pdf":
             self.get_api()
-        elif extension == "cermxml":
+        elif extension == ".cermxml":
             self.get_cerm()
         else:
             raise AttributeError("The file provided is not valid, choose a file in .pdf or .cermxml format")

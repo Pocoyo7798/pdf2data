@@ -10,7 +10,8 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['Click>=7.0', 'numpy>=1.22.0', 'pydantic>=2.5.3', 'beautifulsoup4>=4.11.1', 'pdf2doi>=1.5', 'bibcure>=0.3.0']
+requirements = ['Click>=7.0', 'numpy>=1.22.0', 'pydantic>=2.5.3', 'beautifulsoup4>=4.11.1', 'pdf2doi>=1.5', 'bibcure>=0.3.0'
+                , 'importlib_resources>=6.1.1', 'lxml>=5.1.0']
 
 test_requirements = ['pytest>=3', ]
 
