@@ -16,6 +16,15 @@ from pdf2data.metadata import Metadata
 )
 
 def metadata_finder(path:str, output_folder: Optional[str]) -> None:
+    """Create a json file containing the metadata for each file in path
+
+    Parameters
+    ----------
+    path : str
+        path to the file or folder to be processed
+    output_folder : Optional[str]
+        Output folder path to save the genereate json file containing the metdata
+    """
     if os.path.isfile(path):
         file_list: List[str] = [path]
         input_folder: str = ""
