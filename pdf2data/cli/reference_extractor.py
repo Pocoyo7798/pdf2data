@@ -1,8 +1,10 @@
-from typing import List
-import click
-from pdf2data.support import get_doc_list
 import os
+from typing import List
+
+import click
+
 from pdf2data.references import References
+from pdf2data.support import get_doc_list
 
 
 @click.command()
