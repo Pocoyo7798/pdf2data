@@ -2,7 +2,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from typing import Any, Dict, List
 
 from bs4 import BeautifulSoup as bs
