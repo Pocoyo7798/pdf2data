@@ -1,6 +1,8 @@
-from typing import Any, Dict, List, Optional
-from bs4 import BeautifulSoup as bs
 import os
+from typing import Any, Dict, List, Optional
+
+from bs4 import BeautifulSoup as bs
+
 
 def find_term_in_list(reference: List[str], term: str) -> List[str]:
     """_summary_
@@ -25,8 +27,9 @@ def find_term_in_list(reference: List[str], term: str) -> List[str]:
             term_list.append(volume_text)
         return term_list
     else:
-        return ['Nothing Found']
-    
+        return ["Nothing Found"]
+
+
 def list_into_bs_format(list: List[str], file_format: str = "lxml") -> Any:
     """_summary_
 
@@ -45,6 +48,7 @@ def list_into_bs_format(list: List[str], file_format: str = "lxml") -> Any:
     string_object: str = "".join(str(data) for data in list)
     bs_list: Any = bs(string_object, file_format)
     return bs_list
+
 
 def get_doc_list(folder_path: str, file_format: str) -> List[str]:
     """_summary_

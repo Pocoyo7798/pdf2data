@@ -1,12 +1,14 @@
-from bs4 import BeautifulSoup as bs
-from pdf2data.support import find_term_in_list, list_into_bs_format
-from bs4 import BeautifulSoup as bs
+import os
+import subprocess
+from typing import Any, Dict, List, Optional
+
 import bibtexparser
 import pdf2doi
-import subprocess
-import os
+from bs4 import BeautifulSoup as bs
 from pydantic import BaseModel
-from typing import Any, Dict, List, Optional
+
+from pdf2data.support import find_term_in_list, list_into_bs_format
+
 
 class Metadata(BaseModel):
     file_path: str
@@ -29,7 +31,9 @@ class Metadata(BaseModel):
             content = file.readlines()
         extension = os.path.splitext(self.file_path)[1]
         if extension != ".cermxml":
-            raise AttributeError(f"A .cermxml file should be provided instead of a .{extension} file to use this method")
+            raise AttributeError(
+                f"A .cermxml file should be provided instead of a .{extension} file to use this method"
+            )
         content: str = "".join(content)
         bs_content: Any = bs(content, "lxml")
         article_metadata: List[str] = bs_content.find_all("article-meta")
@@ -61,8 +65,7 @@ class Metadata(BaseModel):
         """Creata a class object from a .pdf file (file_path)"""
         # Run command to get pdf title using pdftitle
         title_output: Any = subprocess.check_output(
-            ["pdftitle", "-p", self.file_path, "--replace-missing-char", '" "',
-             "-t"],
+            ["pdftitle", "-p", self.file_path, "--replace-missing-char", '" "', "-t"],
         )
         # Transform the output into a string
         title_string: str = title_output.decode("utf-8")
@@ -84,8 +87,11 @@ class Metadata(BaseModel):
         # Get DOI metadata from dx.doi.org
         try:
             pdf_info: Dict[str, Any] = subprocess.check_output(
-                ['curl -LH "Accept: application/x-bibtex" "http://dx.doi.org/'
-                + doi[0] + '"'],
+                [
+                    'curl -LH "Accept: application/x-bibtex" "http://dx.doi.org/'
+                    + doi[0]
+                    + '"'
+                ],
                 shell=True,
                 text=True,
                 input="y",
@@ -112,9 +118,9 @@ class Metadata(BaseModel):
                 if "journal" in pdf_info_dic.keys():
                     journal = [pdf_info_dic["journal"]]
         except Exception:
-            print(f'The follwing doi raise an error: {doi[0]}')
+            print(f"The follwing doi raise an error: {doi[0]}")
         metadata_values: set = set([title[0], doi[0], authors[0], year[0], journal[0]])
-        if 'Nothing Found' in metadata_values:
+        if "Nothing Found" in metadata_values:
             try:
                 pdf_info = subprocess.check_output(
                     ["title2bib", title[0]], text=True, input="y"
@@ -132,7 +138,10 @@ class Metadata(BaseModel):
                         authors = pdf_info_dic["author"].split(" and ")
                     if year == ["Nothing Found"] and "year" in pdf_info_dic.keys():
                         year = [pdf_info_dic["year"]]
-                    if journal == ["Nothing Found"] and "journal" in pdf_info_dic.keys():
+                    if (
+                        journal == ["Nothing Found"]
+                        and "journal" in pdf_info_dic.keys()
+                    ):
                         journal = [pdf_info_dic["journal"]]
             except Exception:
                 pass
@@ -151,4 +160,6 @@ class Metadata(BaseModel):
         elif extension == ".cermxml":
             self.get_cerm()
         else:
-            raise AttributeError("The file provided is not valid, choose a file in .pdf or .cermxml format")
+            raise AttributeError(
+                "The file provided is not valid, choose a file in .pdf or .cermxml format"
+            )

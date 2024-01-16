@@ -1,5 +1,7 @@
-from pdf2data.metadata import Metadata
 import importlib_resources
+
+from pdf2data.metadata import Metadata
+
 
 def test_pdf_file():
     """Test getting references from a .pdf file

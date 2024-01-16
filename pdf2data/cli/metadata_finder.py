@@ -1,11 +1,12 @@
 import json
-from typing import Any, Dict, List,  Optional
 import os
-from pdf2data.support import get_doc_list
+from typing import Any, Dict, List, Optional
 
 import click
 
-from pdf2data.metadata import Metadata
+from pdf2data.metadata2 import Metadata
+from pdf2data.support2 import get_doc_list
+
 
 @click.command()
 @click.argument("path", type=str)
@@ -14,8 +15,7 @@ from pdf2data.metadata import Metadata
     default=None,
     help="Output folder path",
 )
-
-def metadata_finder(path:str, output_folder: Optional[str]) -> None:
+def metadata_finder(path: str, output_folder: Optional[str]) -> None:
     """Create a json file containing the metadata for each file in path
 
     Parameters
@@ -32,9 +32,9 @@ def metadata_finder(path:str, output_folder: Optional[str]) -> None:
         file_list = get_doc_list(path, "pdf") + get_doc_list(path, "cermxml")
         input_folder = path + "/"
     if output_folder is None:
-         output_path = ""
+        output_path = ""
     else:
-         output_path = output_folder + "/"
+        output_path = output_folder + "/"
     for file in file_list:
         file_path: str = f"{input_folder}{file}"
         file_name: str = os.path.splitext(file)[0]
@@ -44,9 +44,10 @@ def metadata_finder(path:str, output_folder: Optional[str]) -> None:
     del metadata_dict["file_path"]
     json_metadata = json.dumps(metadata_dict, indent=4)
     with open(f"{output_path}{file_name}_metadata.json", "w") as j:
-            # convert the dictionary into a json variable
-            j.write(json_metadata)
-    
+        # convert the dictionary into a json variable
+        j.write(json_metadata)
+
+
 def main():
     metadata_finder()
 
