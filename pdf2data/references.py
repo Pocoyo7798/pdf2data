@@ -1,20 +1,22 @@
-import sys
-import subprocess
-from bs4 import BeautifulSoup as bs
-from pdf2data.support import get_doc_list, find_term_in_list, find_authors_cerm
+import json
 import os
 import shutil
-import json
-from pydantic import BaseModel
+import subprocess
+import sys
 from typing import Any, Dict, List
+
+from bs4 import BeautifulSoup as bs
+from pydantic import BaseModel
+
+from pdf2data.support import find_authors_cerm, find_term_in_list
+
 
 class References(BaseModel):
     file_path: str
     output_folder: str
 
     def anystyle_pdf_references(self) -> None:
-        """Generate a Json file containing a reference froma pdf file
-        """
+        """Generate a Json file containing a reference froma pdf file"""
         # Runs the commando to use Anystyle in the command prompt
         subprocess.run(
             [
@@ -22,12 +24,12 @@ class References(BaseModel):
                 "-f",
                 "json",
                 "find",
-                '--no-layout',
+                "--no-layout",
                 self.file_path,
-                self.output_folder
+                self.output_folder,
             ]
         )
-    
+
     def get_references_list_cerm(self) -> List[str]:
         """Get all references from a .cermxml file
 
@@ -51,7 +53,7 @@ class References(BaseModel):
         else:
             print("No references have been found")
             return []
-        
+
     def get_file_references_cerm(self) -> List[Dict[str, Any]]:
         """Get all references inside a .cermxml file
 
@@ -77,12 +79,11 @@ class References(BaseModel):
             # add the final dictionary to the final list
             final_list.append(reference_dic)
         return final_list
-    
+
     def cermine_cermxml_references(self) -> None:
-        """Generate a reference json file from a .cermxml file
-        """
+        """Generate a reference json file from a .cermxml file"""
         full_name: str = os.path.basename(self.file_path)
-        file_name: str= os.path.splitext(full_name)[0]
+        file_name: str = os.path.splitext(full_name)[0]
         references_list: List[Dict[str, Any]] = self.get_file_references_cerm()
         if len(references_list) != 0:
             with open(f"{file_name}_references.json", "w") as j:
@@ -90,8 +91,8 @@ class References(BaseModel):
                 json_references = json.dumps(references_list, indent=4)
                 j.write(json_references)
             shutil.move(
-                file_name + ".json", self.output_folder + "/" + file_name +
-                ".json")
+                file_name + ".json", self.output_folder + "/" + file_name + ".json"
+            )
 
     def generate_reference_file(self) -> None:
         """Generate a reference json file from a .cermxml or .pdf file

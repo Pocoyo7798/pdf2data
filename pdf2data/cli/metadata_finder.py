@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import click
 
-from pdf2data.metadata2 import Metadata
-from pdf2data.support2 import get_doc_list
+from pdf2data.metadata import Metadata
+from pdf2data.support import get_doc_list
 
 
 @click.command()
