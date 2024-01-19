@@ -1,7 +1,7 @@
 import os
 from typing import Any, Dict, List
-import numpy as np
 
+import numpy as np
 from bs4 import BeautifulSoup as bs
 
 
@@ -129,6 +129,7 @@ def find_authors_cerm(reference: List[str]) -> List[Dict[str, str]]:
     )
     return all_authors_list
 
+
 def iou(box_1: List[float], box_2: List[float]) -> float:
     """Calculate the ipou valçue between 2 boxes
 
@@ -159,7 +160,7 @@ def iou(box_1: List[float], box_2: List[float]) -> float:
     return interseption / float(box_1_area + box_2_area - interseption)
 
 
-def order_horizontal(box_rows: list, output_type='box_list') -> List[Any]:
+def order_horizontal(box_rows: list, output_type="box_list") -> List[Any]:
     """Order a list of boxes horizontally
 
     Parameters
@@ -178,14 +179,19 @@ def order_horizontal(box_rows: list, output_type='box_list') -> List[Any]:
     for box in box_rows:
         y1_list.append(box[1])
     order_box_index: List[int] = np.argsort(y1_list)
-    if output_type == 'argument_list':
+    if output_type == "argument_list":
         return order_box_index
     new_box_rows = []
     for index in order_box_index:
         new_box_rows.append(box_rows[index])
     return new_box_rows
 
-def block_organizer(box_list: List[List[float]], page_coords: List[float], displacement_factor: float=0.9) -> List[int]:
+
+def block_organizer(
+    box_list: List[List[float]],
+    page_coords: List[float],
+    displacement_factor: float = 0.9,
+) -> List[int]:
     """Organize all block in a page taken into account a two collumn format
 
     Parameters

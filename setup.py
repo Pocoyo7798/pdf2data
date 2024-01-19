@@ -11,7 +11,7 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "Click>=7.0",
+    "Click<=7.1.2",
     "numpy>=1.24.3",
     "pydantic<2.0",
     "beautifulsoup4>=4.12.3",
@@ -25,7 +25,7 @@ requirements = [
     "layoutparser[layoutmodels]",
     "cython>=3.0.8",
     "effdet<=0.3.0",
-    "pillow<=9.1.0"
+    "pillow<=9.1.0",
 ]
 
 test_requirements = [
