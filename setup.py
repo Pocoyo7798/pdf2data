@@ -25,9 +25,6 @@ requirements = [
     "layoutparser[layoutmodels]",
     "cython>=3.0.8",
     "effdet<=0.3.0",
-    "torch==1.9.0+cu111",
-    "torchvision==0.10.0+cu111",
-    "detectron2@git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2",
     "pillow<=9.1.0"
 ]
 
