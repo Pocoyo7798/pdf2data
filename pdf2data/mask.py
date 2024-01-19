@@ -116,10 +116,10 @@ class LayoutParser(BaseModel):
         table_types: List[str] = []
         for entry in layout:
             # Retrieve the bounding box
-            x1: float = entry.block.x_1 / float(width) * float(pdf_width)
-            x2: float = entry.block.x_2 / float(width) * float(pdf_width)
-            y1: float = entry.block.y_1 / float(height) * float(pdf_height)
-            y2: float = entry.block.y_2 / float(height) * float(pdf_height)
+            x1: float = entry.block.x_1 / width * pdf_width
+            x2: float = entry.block.x_2 / width * pdf_width
+            y1: float = entry.block.y_1 / height * pdf_height
+            y2: float = entry.block.y_2 / height * pdf_height
             if entry.type in TEXT_WORDS_REGISTRY:
                 boxes.append([x1, y1, x2, y2])
                 scores.append(entry.score)
@@ -203,9 +203,11 @@ class LayoutParser(BaseModel):
         for page in page_list:
             pdf_page = pdf.pages[i]
             pdf_size = pdf_page.cropbox
-            pdf_width = pdf_size[2] - pdf_size[0]
-            pdf_height = pdf_size[3] - pdf_size[1]
+            pdf_width = float(pdf_size[2] - pdf_size[0])
+            pdf_height = float(pdf_size[3] - pdf_size[1])
             width, height = page.size
+            width = float(width)
+            height = float(height)
             if self.model == "microsoft/table-transformer-detection":
                 first_layout: Dict[str, Any] = LayoutParser.generate_layout_hf(self._model, page, width, height, pdf_height, pdf_width, self.model_threshold)
             else:
