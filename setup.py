@@ -11,14 +11,21 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "Click>=7.0",
-    "numpy>=1.22.0",
-    "pydantic>=2.5.3",
-    "beautifulsoup4>=4.11.1",
+    "Click<=7.1.2",
+    "numpy>=1.24.3",
+    "pydantic<2.0",
+    "beautifulsoup4>=4.12.3",
     "pdf2doi>=1.5",
     "bibcure>=0.3.0",
     "importlib_resources>=6.1.1",
     "lxml>=5.1.0",
+    "transformers>=4.36.2",
+    "layoutparser>=0.3.4",
+    "tensorflow>=2.13.1",
+    "layoutparser[layoutmodels]",
+    "cython>=3.0.8",
+    "effdet<=0.3.0",
+    "pillow<=9.1.0",
 ]
 
 test_requirements = [
