@@ -12,13 +12,23 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "Click>=7.0",
-    "numpy>=1.22.0",
-    "pydantic>=2.5.3",
-    "beautifulsoup4>=4.11.1",
+    "numpy>=1.24.3",
+    "pydantic<2.0",
+    "beautifulsoup4>=4.12.3",
     "pdf2doi>=1.5",
     "bibcure>=0.3.0",
     "importlib_resources>=6.1.1",
     "lxml>=5.1.0",
+    "transformers>=4.36.2",
+    "layoutparser>=0.3.4",
+    "tensorflow>=2.13.1",
+    "layoutparser[layoutmodels]",
+    "cython>=3.0.8",
+    "effdet<=0.3.0",
+    "torch==1.9.0+cu111",
+    "torchvision==0.10.0+cu111",
+    "detectron2@git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2",
+    "pillow<=9.1.0"
 ]
 
 test_requirements = [
