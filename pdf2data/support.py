@@ -1,5 +1,6 @@
 import os
 from typing import Any, Dict, List
+import numpy as np
 
 from bs4 import BeautifulSoup as bs
 
@@ -127,3 +128,89 @@ def find_authors_cerm(reference: List[str]) -> List[Dict[str, str]]:
         )
     )
     return all_authors_list
+
+def iou(box_1: List[float], box_2: List[float]) -> float:
+    """Calculate the ipou valçue between 2 boxes
+
+    Parameters
+    ----------
+    box_1 : List[float]
+        coordinates of box 1
+    box_2 : List[float]
+        coordinates of box 2
+
+    Returns
+    -------
+    float
+        the iou value
+    """
+    x_1: float = max(box_1[0], box_2[0])
+    y_1: float = max(box_1[1], box_2[1])
+    x_2: float = min(box_1[2], box_2[2])
+    y_2: float = min(box_1[3], box_2[3])
+    # Determine the value of the box interseption
+    interseption: float = abs(max((x_2 - x_1), 0)) * max((y_2 - y_1), 0)
+    if interseption == 0:
+        return 0
+    # Determine the boxes are
+    box_1_area: float = abs((box_1[2] - box_1[0]) * (box_1[3] - box_1[1]))
+    box_2_area: float = abs((box_2[2] - box_2[0]) * (box_2[3] - box_2[1]))
+    # Return the iou
+    return interseption / float(box_1_area + box_2_area - interseption)
+
+
+def order_horizontal(box_rows: list, output_type='box_list') -> List[Any]:
+    """Order a list of boxes horizontally
+
+    Parameters
+    ----------
+    box_rows : list
+        List of boxes to consider
+    output_type : str, optional
+        'box_list' for the organized boxes values, "argument_list" for the list of organized indexes, by default 'box_list'
+
+    Returns
+    -------
+    List[Any]
+        A list of horizontally organized boxes or indexes
+    """
+    y1_list: List[List[float]] = []
+    for box in box_rows:
+        y1_list.append(box[1])
+    order_box_index: List[int] = np.argsort(y1_list)
+    if output_type == 'argument_list':
+        return order_box_index
+    new_box_rows = []
+    for index in order_box_index:
+        new_box_rows.append(box_rows[index])
+    return new_box_rows
+
+def block_organizer(box_list: List[List[float]], page_coords: List[float], displacement_factor: float=0.9) -> List[int]:
+    """Organize all block in a page taken into account a two collumn format
+
+    Parameters
+    ----------
+    box_list : List[List[float]]
+        list of all block coordinates present in the page
+    page_coords : List[float]
+        page dimensions
+    displacement_factor : float, optional
+        factor to move the center of the page to the left, by default 0.9
+
+    Returns
+    -------
+    List[int]
+        List contain the indexes of the organized blocks
+    """
+    page_midle: float = float(page_coords[0] + page_coords[2]) / 2 * displacement_factor
+    index: int = 0
+    index_list_1: List[int] = []
+    index_list_2: List[int] = []
+    for box in box_list:
+        if box[0] < page_midle:
+            index_list_1.append(index)
+        else:
+            index_list_2.append(index)
+        index = index + 1
+    index_list: List[int] = index_list_1 + index_list_2
+    return index_list
