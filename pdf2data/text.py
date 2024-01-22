@@ -271,26 +271,24 @@ class TextExtractor(BaseModel):
             page_size: Any = pdf_page.mediabox
             boxes: List[float] = layout['boxes'][page_index]
             types: List[str] = layout['types'][page_index]
-            for j in range(len(boxes)):
+            j = 0
+            for box in boxes:
                 test: bool = False
                 text: str = ''
                 if types[j] in check:
-                    text = get_string_from_box(page, boxes[j], page_size)
+                    text = get_string_from_box(page, box, page_size)
                     test = verify_string_in_list(text, strings_to_remove)
                 if types[j] == 'Title' and text != '' and test is False:
                     text_list.append(text)
-                    coords_list.append(boxes[j])
+                    coords_list.append(box)
                     type_list.append('section_header')
                 elif types[j] == 'Text' and text != '' and test is False:
                     text_list.append(text)
-                    coords_list.append(boxes[j])
-                    type_list.append('paragraph')
-                elif types[j] == 'TextRegion' and text != '' and test is False:
-                    text_list.append(text)
-                    coords_list.append(boxes[j])
+                    coords_list.append(box)
                     type_list.append('paragraph')
                 if text in reference_list:
                     break
+                j = j + 1
             page_index = page_index + 1
         block_dict['Text'] = text_list
         block_dict['Type'] = type_list
