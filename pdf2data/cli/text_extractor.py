@@ -27,24 +27,24 @@ def text_extractor(input_folder: str, output_folder: Optional[str], type:str) ->
     if type not in possible_types:
         raise AttributeError(f"{type} is not a available type, try one of the following: {possible_types}")
     if type == "layoutparser":
-        mask = LayoutParser(model="PubLayNet_mask_rcnn_X_101_32x8d_FPN_3x")
+        mask:LayoutParser = LayoutParser(model="PubLayNet_mask_rcnn_X_101_32x8d_FPN_3x")
         mask.model_post_init(None)
-        docs = get_doc_list(input_folder, ".pdf")
+        docs: List[str] = get_doc_list(input_folder, ".pdf")
     else:
-        generator = TextFileGenerator(input_folder=input_folder, output_folder=output_folder)
+        generator: TextFileGenerator = TextFileGenerator(input_folder=input_folder, output_folder=output_folder)
         generator.model_post_init(None)
-        if type == "Cermine":
+        if type == "cermine":
             generator.pdf_to_cermxml()
             docs = get_doc_list(output_folder, ".cermxml")
         elif type == "minersix":
             generator.pdf_to_miner("txt")
             docs = get_doc_list(output_folder, ".txt")
     for doc in docs:
-        file_name = os.path.splitext(doc)[0]
+        file_name: str = os.path.splitext(doc)[0]
         if type == "layoutparser":
-            file_path = f"{input_folder}/{doc}"
-            extractor = TextExtractor(input_file=file_path, output_folder=output_folder)
-            layout = mask.get_layout(file_path, 0.5)
+            file_path: str = f"{input_folder}/{doc}"
+            extractor: TextExtractor = TextExtractor(input_file=file_path, output_folder=output_folder)
+            layout: Dict[str, Any] = mask.get_layout(file_path, 0.5)
             extractor.extract_layoutparser(f"{file_name}_text", layout)
         else:
             file_path = f"{output_folder}/{doc}"
