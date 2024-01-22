@@ -54,6 +54,7 @@ setup(
             "pdf2data=pdf2data.cli.cli:main",
             "pdf2data_metadata=pdf2data.cli.metadata_finder:main",
             "pdf2data_references=pdf2data.cli.reference_extractor:main",
+            "pdf2data_text=pdf2data.cli.text_extractor:main"
         ],
     },
     install_requires=requirements,
