@@ -240,7 +240,26 @@ class LayoutParser(BaseModel):
             "exist_figure": False,
         }
 
-    def get_layout(self, pdf_path: str, iou_max: float):
+    def get_layout(self, pdf_path: str, iou_max: float) -> Dict[str, Any]:
+        """Get the dictionary with the layout of a pdf file
+
+        Parameters
+        ----------
+        pdf_path : str
+            path to the file
+        iou_max : float
+            maximum iou to correct the table
+
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary containing information about the bloccks coordinates, types, scores e page type
+
+        Raises
+        ------
+        AttributeError
+            if the the given is not in pdf
+        """
         extension = os.path.splitext(pdf_path)[1]
         if extension != ".pdf":
             raise AttributeError("The file provided is not in pdf")
