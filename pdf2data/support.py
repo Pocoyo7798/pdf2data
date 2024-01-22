@@ -1,8 +1,15 @@
 import os
-from typing import Any, Dict, List
+from typing import Any, Container, Dict, List
 
 import numpy as np
 from bs4 import BeautifulSoup as bs
+from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
+from io import BytesIO
+from pdfminer.layout import LAParams
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.pdfpage import PDFPage
+from difflib import SequenceMatcher
+import fitz
 
 
 def find_term_in_list(reference: List[str], term: str) -> List[str]:
@@ -52,7 +59,7 @@ def list_into_bs_format(list: List[str], file_format: str = "lxml") -> Any:
 
 
 def get_doc_list(folder_path: str, file_format: str) -> List[str]:
-    """_summary_
+    """Get a list of all documents with a specific file extension
 
     Parameters
     ----------
@@ -220,3 +227,206 @@ def block_organizer(
         index = index + 1
     index_list: List[int] = index_list_1 + index_list_2
     return index_list
+
+def remove_page_images(document: Any, page: int) -> Any:
+    """Remove images from a pdf page
+
+    Parameters
+    ----------
+    document : Any
+        pdf file to be processed
+    page : int
+        page number to be considered
+
+    Returns
+    -------
+    Any
+        the document without images in the specified page
+    """
+    image_list: Any = document.get_page_images(page)
+    # get the code of all contents in the page
+    content_list: Any = document[page].get_contents()
+    for content in content_list:
+        # generate the source stream of each content
+        source_stream: Any = document.xref_stream(content)
+        if source_stream is not None:
+            for image in image_list:
+                # generate the image code
+                array: bytes = bytes(image[7], "utf-8")
+                # try to find the image code in the content source stream
+                test: Any = source_stream.find(array)
+                # if test=-1, it means that content is not that specified image
+                if test != -1:
+                    # create a new blank source stream keeping the position
+                    new_stream: Any = source_stream.replace(array, b"")
+                    # replace the older source stream by the new one
+                    document.update_stream(content, new_stream)
+                    source_stream: Any = document.xref_stream(content)
+    return document
+
+
+
+def remove_pdf_images(document: Any) -> Any:
+    """Remove images from a pdf document
+
+    Parameters
+    ----------
+    document : Any
+        document to be processed
+
+    Returns
+    -------
+    Any
+        document without any image
+    """
+    if len(document) > 0:
+        for page in range(len(document) - 1):
+            document = remove_page_images(document, page)
+        return document
+    else:
+        print("The document is empty")
+def convert_pdfminersix(
+    path: str,
+    format: str = "text",
+    codec: str = "utf-8",
+    password: str = "",
+    maxpages: int = 0,
+    caching: bool = True,
+    pagenos: Container[int] = set(),
+) -> str:
+    # Script from https://gist.github.com/rguliev/3d886d38daa8ac0be8ddb85d645fb0bc
+    """Summary
+    Parameters
+    ----------
+    path : str
+        Path to the pdf file
+    format : str, optional
+        Format of output, must be one of: "text", "html", "xml".
+        By default, "text" format is used
+    codec : str, optional
+        Encoding. By default "utf-8" is used
+    password : str, optional
+        Password
+    maxpages : int, optional
+        Max number of pages to convert. By default is 0, i.e. reads all pages.
+    caching : bool, optional
+        Caching. By default is True
+    pagenos : Container[int], optional
+        Provide a list with numbers of pages to convert
+    Returns
+    -------
+    str
+        Converted pdf file
+    """
+    rsrcmgr = PDFResourceManager()
+    retstr = BytesIO()
+    laparams = LAParams()
+    if format == "text":
+        device = TextConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+    elif format == "html":
+        device = HTMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+    elif format == "xml":
+        device = XMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+    else:
+        raise ValueError("provide format, either text, html or xml!")
+    fp = open(path, "rb")
+    interpreter = PDFPageInterpreter(rsrcmgr, device)
+    for page in PDFPage.get_pages(
+        fp,
+        pagenos,
+        maxpages=maxpages,
+        password=password,
+        caching=caching,
+        check_extractable=True,
+    ):
+        interpreter.process_page(page)
+    text = retstr.getvalue().decode()
+    fp.close()
+    device.close()
+    retstr.close()
+    return text
+
+def verify_string_in_list(string:str, list_of_words: List[str]) -> bool:
+    """Verify if a string exist inside a list
+
+    Parameters
+    ----------
+    string : str
+        string to be considered
+    list_of_words : List[str]
+        List of strings
+
+    Returns
+    -------
+    bool
+        True if the string exists, False otherwise
+    """
+    for entry in list_of_words:
+        similarity: float = SequenceMatcher(None, entry, string).ratio()
+        if similarity > 0.9:
+            return True
+    return False
+
+def box_corretor(pdf_size: List[float], box: List[float], x_corrector: float=0, y_corrector: float=0) -> List[float]:
+    """increase the box size depending on the page size
+
+    Parameters
+    ----------
+    pdf_size : List[float]
+        size of the pdf page size
+    box : List[float]
+        inital box coordinates
+    x_corrector : float, optional
+        corrector of the x axis, by default 0
+    y_corrector : float, optional
+        corrector of the y axis, by default 0
+
+    Returns
+    -------
+    List[float]
+        a list with the corrected coordinates
+    """
+    x_1: float = max(pdf_size[0], int(float(box[0]) - x_corrector * (float(pdf_size[2] - pdf_size[0]))))
+    y_1: float = max(pdf_size[1], int(float(box[1]) - y_corrector * (float(pdf_size[3] - pdf_size[1]))))
+    x_2: float = min(pdf_size[2], int(float(box[2]) + x_corrector * (float(pdf_size[2] - pdf_size[0]))))
+    y_2: float = min(pdf_size[3], int(float(box[3]) + y_corrector * (float(pdf_size[3] - pdf_size[1]))))
+    return x_1, y_1, x_2, y_2
+
+def get_string_from_box(page: Any, box_coords: List[float],  page_size: List[float], x_corrector_value: float=0.01, y_corrector_value: float=0.005) -> str:
+    """retrieve the text inside a box
+
+    Parameters
+    ----------
+    page : Any
+        pdf page
+    box_coords : List[float]
+        box coordinates
+    page_size : List[float]
+        size of the pdf size
+    x_corrector_value : float, optional
+        corrector of the x axis, by default 0.01
+    y_corrector_value : float, optional
+        corrector of the y axis, by default 0.005
+
+    Returns
+    -------
+    str
+        the text string isnde the box
+    """
+    # Correct the tablle coordinates acording the the page size
+    x_1, y_1, x_2, y_2 = box_corretor(page_size, box_coords, x_corrector=x_corrector_value, y_corrector=y_corrector_value)
+    table_rect: Any = fitz.Rect(x_1, y_1, x_2, y_2)
+    # Retrive the text inside the box
+    text: str = page.get_text(
+        clip=table_rect,
+    )
+    text = text.replace('\n', ' ')
+    text = text.replace('\t', ' ')
+    text = text.replace('- ', ' ')
+    text = text.replace('\u2010 ', ' ')
+    text = text.replace('\u00a0', ' ')
+    text = text.replace(' -', '')
+    text = text.replace('  ', ' ')
+    text = text.replace('   ', ' ')
+    text = text.replace('    ', ' ')
+    return text
