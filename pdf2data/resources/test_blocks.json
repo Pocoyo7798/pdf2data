@@ -1,0 +1,495 @@
+{
+    "blocks": [
+        {
+            "page": 1,
+            "name": "Figure1.tiff",
+            "type": "Figure",
+            "number": 1,
+            "legend": "Fig. 1. XRD patterns of as-synthesized SAPO samples: (a) M20, (b) M15, (c) M10, (d) M5 and (e) M0. ",
+            "box": [
+                318.93378823147714,
+                546.6423532555406,
+                548.0155975053964,
+                721.0797505844428
+            ]
+        },
+        {
+            "page": 3,
+            "block": [
+                [
+                    "Samples",
+                    "Gel compositiona (x)",
+                    "Temperature (8C)",
+                    "Time (h)",
+                    "Product phase"
+                ],
+                [
+                    "M20",
+                    "2.0",
+                    "200",
+                    "12",
+                    "SAPO-34"
+                ],
+                [
+                    "M15",
+                    "1.5",
+                    "200",
+                    "12",
+                    "SAPO-34"
+                ],
+                [
+                    "M10",
+                    "1.0",
+                    "200",
+                    "12",
+                    "SAPO-34"
+                ],
+                [
+                    "M5",
+                    "0.5",
+                    "200",
+                    "12",
+                    "SAPO-34"
+                ],
+                [
+                    "M0",
+                    "M0",
+                    "200",
+                    "12",
+                    "SAPO-5 (92%) + SAPO-34 (8%)"
+                ]
+            ],
+            "type": "Table",
+            "collumn_headers": null,
+            "row_indexes": null,
+            "number": 1,
+            "legend": "Table 1 Preparation conditions for SAPO-34 samples and their con\ufb01rmed phase ",
+            "box": [
+                30.076650027310833,
+                86.22508175565758,
+                563.0077171396165,
+                156.38635419585557
+            ]
+        },
+        {
+            "page": 3,
+            "block": [
+                [
+                    "M20",
+                    "2.0",
+                    "2.0",
+                    "200",
+                    "12",
+                    "SAPO-34",
+                    "SAPO-34"
+                ],
+                [
+                    "M15",
+                    "1.5",
+                    "1.5",
+                    "200",
+                    "12",
+                    "SAPO-34",
+                    "SAPO-34"
+                ],
+                [
+                    "M10",
+                    "1.0",
+                    "1.0",
+                    "200",
+                    "12",
+                    "SAPO-34",
+                    "SAPO-34"
+                ],
+                [
+                    "M5",
+                    "0.5",
+                    "0.5",
+                    "200",
+                    "12",
+                    "SAPO-34",
+                    "SAPO-34"
+                ],
+                [
+                    "M0",
+                    "M0",
+                    "M0",
+                    "200",
+                    "200",
+                    "SAPO-5 (92%) + SAPO-34 (8%)",
+                    "SAPO-5 (92%) + SAPO-34 (8%)"
+                ],
+                [
+                    "a 1.0Al2O3:1.0P2O5:0.6SiO2:x morpholine:(2 \ufffd x)TEAOH:52H2O, where x is de\ufb01ned as the mole ratio of morpholine to alumina.",
+                    "a 1.0Al2O3:1.0P2O5:0.6SiO2:x morpholine:(2 \ufffd x)TEAOH:52H2O, where x is de\ufb01ned as the mole ratio of morpholine to alumina.",
+                    "a 1.0Al2O3:1.0P2O5:0.6SiO2:x morpholine:(2 \ufffd x)TEAOH:52H2O, where x is de\ufb01ned as the mole ratio of morpholine to alumina.",
+                    "a 1.0Al2O3:1.0P2O5:0.6SiO2:x morpholine:(2 \ufffd x)TEAOH:52H2O, where x is de\ufb01ned as the mole ratio of morpholine to alumina.",
+                    "a 1.0Al2O3:1.0P2O5:0.6SiO2:x morpholine:(2 \ufffd x)TEAOH:52H2O, where x is de\ufb01ned as the mole ratio of morpholine to alumina.",
+                    "SAPO-5 (92%) + SAPO-34 (8%)",
+                    "SAPO-5 (92%) + SAPO-34 (8%)"
+                ],
+                [
+                    "Table 2",
+                    "Table 2",
+                    "Table 2",
+                    "Table 2",
+                    "Table 2",
+                    "SAPO-5 (92%) + SAPO-34 (8%)",
+                    "SAPO-5 (92%) + SAPO-34 (8%)"
+                ],
+                [
+                    "Physicochemical properties of synthesized SAPO catalysts",
+                    "Physicochemical properties of synthesized SAPO catalysts",
+                    "Physicochemical properties of synthesized SAPO catalysts",
+                    "Physicochemical properties of synthesized SAPO catalysts",
+                    "Physicochemical properties of synthesized SAPO catalysts",
+                    "SAPO-5 (92%) + SAPO-34 (8%)",
+                    "SAPO-5 (92%) + SAPO-34 (8%)"
+                ],
+                [
+                    "Samples",
+                    "Elemental analysisa",
+                    "Elemental analysisa",
+                    "Elemental analysisa",
+                    "BET surface area (m2/g)",
+                    "Amount of desorbed ammonia (mmol/g)b",
+                    "Amount of desorbed ammonia (mmol/g)b"
+                ],
+                [
+                    "Samples",
+                    "Al",
+                    "Al",
+                    "Si",
+                    "BET surface area (m2/g)",
+                    "200 8C",
+                    "430 8C"
+                ],
+                [
+                    "M20",
+                    "0.448",
+                    "0.405",
+                    "0.146",
+                    "772",
+                    "0.35",
+                    "0.62"
+                ],
+                [
+                    "M15",
+                    "0.443",
+                    "0.388",
+                    "0.169",
+                    "728",
+                    "0.43",
+                    "0.60"
+                ],
+                [
+                    "M10",
+                    "0.433",
+                    "0.391",
+                    "0.175",
+                    "665",
+                    "0.43",
+                    "0.59"
+                ],
+                [
+                    "M5",
+                    "0.437",
+                    "0.386",
+                    "0.177",
+                    "623",
+                    "0.34",
+                    "0.33"
+                ],
+                [
+                    "M0",
+                    "0.442",
+                    "0.390",
+                    "0.179",
+                    "284",
+                    "0.28c",
+                    "\u2013"
+                ],
+                [
+                    "a Analyzed by ICP-AES.",
+                    "a Analyzed by ICP-AES.",
+                    "a Analyzed by ICP-AES.",
+                    "a Analyzed by ICP-AES.",
+                    "a Analyzed by ICP-AES.",
+                    "0.28c",
+                    "0.28c"
+                ],
+                [
+                    "b Analyzed by NH3-TPD.",
+                    "b Analyzed by NH3-TPD.",
+                    "b Analyzed by NH3-TPD.",
+                    "b Analyzed by NH3-TPD.",
+                    "b Analyzed by NH3-TPD.",
+                    "0.28c",
+                    "0.28c"
+                ]
+            ],
+            "type": "Table",
+            "collumn_headers": null,
+            "row_indexes": null,
+            "number": 2,
+            "legend": "Table 2 Physicochemical properties of synthesized SAPO catalysts ",
+            "box": [
+                30.268396517088217,
+                110.48195055442342,
+                557.7829602838998,
+                322.3206800507215
+            ]
+        },
+        {
+            "page": 3,
+            "block": [
+                [
+                    "Samples",
+                    "Elemental analysisa",
+                    "Elemental analysisa",
+                    "Elemental analysisa",
+                    "BET surface area (m2/g)",
+                    "Amount of desorbed ammonia (mmol/g)b",
+                    "Amount of desorbed ammonia (mmol/g)b"
+                ],
+                [
+                    "Samples",
+                    "Al",
+                    "Al",
+                    "Si",
+                    "BET surface area (m2/g)",
+                    "200 8C",
+                    "430 8C"
+                ],
+                [
+                    "M20",
+                    "0.448",
+                    "0.405",
+                    "0.146",
+                    "772",
+                    "0.35",
+                    "0.62"
+                ],
+                [
+                    "M15",
+                    "0.443",
+                    "0.388",
+                    "0.169",
+                    "728",
+                    "0.43",
+                    "0.60"
+                ],
+                [
+                    "M10",
+                    "0.433",
+                    "0.391",
+                    "0.175",
+                    "665",
+                    "0.43",
+                    "0.59"
+                ],
+                [
+                    "M5",
+                    "0.437",
+                    "0.386",
+                    "0.177",
+                    "623",
+                    "0.34",
+                    "0.33"
+                ],
+                [
+                    "M0",
+                    "0.442",
+                    "0.390",
+                    "0.179",
+                    "284",
+                    "0.28c",
+                    "\u2013"
+                ]
+            ],
+            "type": "Table",
+            "collumn_headers": null,
+            "row_indexes": null,
+            "number": 3,
+            "legend": "Table 2 Physicochemical properties of synthesized SAPO catalysts ",
+            "box": [
+                29.276398391668277,
+                205.18820527044804,
+                552.9332612316496,
+                306.0371496063855
+            ]
+        },
+        {
+            "page": 2,
+            "name": "Figure2.tiff",
+            "type": "Figure",
+            "number": 2,
+            "legend": "Fig. 2. SEM images of the prepared SAPO samples: (a) M20, (b) M15, (c) M10, (d) M5 and (e) M0. Bars correspond to 1 mm ",
+            "box": [
+                96.63270728579685,
+                530.2448868273676,
+                492.0614719887748,
+                730.0680386360012
+            ]
+        },
+        {
+            "page": 3,
+            "name": "Figure3.tiff",
+            "type": "Figure",
+            "number": 3,
+            "legend": "Fig. 3. TGA (a) and DTA (b) curves of as-synthesized SAPO samples. ",
+            "box": [
+                145.42898180989977,
+                59.05594132298061,
+                455.46967811785584,
+                222.7789017707669
+            ]
+        },
+        {
+            "page": 3,
+            "name": "Figure4.tiff",
+            "type": "Figure",
+            "number": 4,
+            "legend": "Fig. 4. NH3-TPD pro\ufb01les for the calcined SAPO catalysts: (a) M20, (b) M15, (c) M10, (d) M5 and (e) M0. ",
+            "box": [
+                318.5708999268463,
+                558.5274186578245,
+                542.1288989927945,
+                716.8966346580038
+            ]
+        },
+        {
+            "page": 4,
+            "name": "Figure5.tiff",
+            "type": "Figure",
+            "number": 5,
+            "legend": "Fig. 5. Effect of reaction temperature on methanol conversion and product distribution. Feed: MeOH/He = 1/11 (molar ratio), WHSV(MeOH) = 1 h\ufffd1, time on stream = 1 h. ",
+            "box": [
+                48.110713275840226,
+                63.019209793526784,
+                521.7350595378391,
+                232.55101051174864
+            ]
+        },
+        {
+            "page": 4,
+            "name": "Figure6.tiff",
+            "type": "Figure",
+            "number": 6,
+            "legend": "Fig. 5. Effect of reaction temperature on methanol conversion and product distribution. Feed: MeOH/He = 1/11 (molar ratio), WHSV(MeOH) = 1 h\ufffd1, time on stream = 1 h. ",
+            "box": [
+                49.74094285452495,
+                64.02866701168138,
+                276.4867300588476,
+                229.40017305360135
+            ]
+        },
+        {
+            "page": 4,
+            "name": "Figure7.tiff",
+            "type": "Figure",
+            "number": 7,
+            "legend": "Fig. 6. Product distribution with time-on-stream over M15 catalyst. Feed: MeOH/He = 1/11 (molar ratio), WHSV(MeOH) = 1 h\ufffd1. ",
+            "box": [
+                311.48792210541325,
+                70.85035335979852,
+                535.5366331469756,
+                231.4384759406888
+            ]
+        },
+        {
+            "page": 6,
+            "block": [
+                [
+                    "Samples",
+                    "Catalyst lifetime (min)",
+                    "MeOH conversion (%)",
+                    "Product yields (%)",
+                    "Product yields (%)",
+                    "Product yields (%)",
+                    "Product yields (%)"
+                ],
+                [
+                    "Samples",
+                    "Catalyst lifetime (min)",
+                    "MeOH conversion (%)",
+                    "C2 C3",
+                    "C32\ufffd",
+                    "C4 2\ufffd",
+                    "Saturated HCs"
+                ],
+                [
+                    "M20",
+                    "160",
+                    "100",
+                    "42.8",
+                    "39.1",
+                    "8.0",
+                    "10.2"
+                ],
+                [
+                    "M15",
+                    "840",
+                    "100",
+                    "45.6",
+                    "36.2",
+                    "6.2",
+                    "4.1"
+                ],
+                [
+                    "M10",
+                    "520",
+                    "100",
+                    "44.6",
+                    "37.4",
+                    "6.6",
+                    "3.0"
+                ],
+                [
+                    "M5",
+                    "430",
+                    "100",
+                    "42.4",
+                    "33.9",
+                    "6.2",
+                    "3.3"
+                ],
+                [
+                    "M0",
+                    "370",
+                    "100",
+                    "19.9",
+                    "40.3",
+                    "16.0",
+                    "5.5"
+                ]
+            ],
+            "type": "Table",
+            "collumn_headers": null,
+            "row_indexes": null,
+            "number": 4,
+            "legend": "Table 3 Product distribution and catalyst lifetime on SAPO catalysts in methanol conversion reactiona ",
+            "box": [
+                39.32410995878245,
+                87.88858886251644,
+                558.9322969591354,
+                174.52002618258732
+            ]
+        },
+        {
+            "page": 5,
+            "name": "Figure8.tiff",
+            "type": "Figure",
+            "number": 8,
+            "legend": "Fig. 7. Yield of C2\u2013C4 ole\ufb01ns with time-on-stream over SAPO catalysts. Feed: MeOH/He = 1/11 (molar ratio), WHSV(MeOH) = 1 h\ufffd1. ",
+            "box": [
+                54.978561157115855,
+                559.2047951047314,
+                282.4340344329797,
+                719.2243033073581
+            ]
+        }
+    ],
+    "amount": 12,
+    "doi": ""
+}
