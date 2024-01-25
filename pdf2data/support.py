@@ -1,15 +1,15 @@
 import os
+from difflib import SequenceMatcher
+from io import BytesIO
 from typing import Any, Container, Dict, List
 
+import fitz
 import numpy as np
 from bs4 import BeautifulSoup as bs
-from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
-from io import BytesIO
+from pdfminer.converter import HTMLConverter, TextConverter, XMLConverter
 from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
-from difflib import SequenceMatcher
-import fitz
 
 
 def find_term_in_list(reference: List[str], term: str) -> List[str]:
@@ -228,6 +228,7 @@ def block_organizer(
     index_list: List[int] = index_list_1 + index_list_2
     return index_list
 
+
 def remove_page_images(document: Any, page: int) -> Any:
     """Remove images from a pdf page
 
@@ -265,7 +266,6 @@ def remove_page_images(document: Any, page: int) -> Any:
     return document
 
 
-
 def remove_pdf_images(document: Any) -> Any:
     """Remove images from a pdf document
 
@@ -285,6 +285,8 @@ def remove_pdf_images(document: Any) -> Any:
         return document
     else:
         print("The document is empty")
+
+
 def convert_pdfminersix(
     path: str,
     format: str = "text",
@@ -346,7 +348,8 @@ def convert_pdfminersix(
     retstr.close()
     return text
 
-def verify_string_in_list(string:str, list_of_words: List[str]) -> bool:
+
+def verify_string_in_list(string: str, list_of_words: List[str]) -> bool:
     """Verify if a string exist inside a list
 
     Parameters
@@ -367,7 +370,13 @@ def verify_string_in_list(string:str, list_of_words: List[str]) -> bool:
             return True
     return False
 
-def box_corretor(pdf_size: List[float], box: List[float], x_corrector: float=0, y_corrector: float=0) -> List[float]:
+
+def box_corretor(
+    pdf_size: List[float],
+    box: List[float],
+    x_corrector: float = 0,
+    y_corrector: float = 0,
+) -> List[float]:
     """increase the box size depending on the page size
 
     Parameters
@@ -386,13 +395,32 @@ def box_corretor(pdf_size: List[float], box: List[float], x_corrector: float=0, 
     List[float]
         a list with the corrected coordinates
     """
-    x_1: float = max(pdf_size[0], int(float(box[0]) - x_corrector * (float(pdf_size[2] - pdf_size[0]))))
-    y_1: float = max(pdf_size[1], int(float(box[1]) - y_corrector * (float(pdf_size[3] - pdf_size[1]))))
-    x_2: float = min(pdf_size[2], int(float(box[2]) + x_corrector * (float(pdf_size[2] - pdf_size[0]))))
-    y_2: float = min(pdf_size[3], int(float(box[3]) + y_corrector * (float(pdf_size[3] - pdf_size[1]))))
+    x_1: float = max(
+        pdf_size[0],
+        int(float(box[0]) - x_corrector * (float(pdf_size[2] - pdf_size[0]))),
+    )
+    y_1: float = max(
+        pdf_size[1],
+        int(float(box[1]) - y_corrector * (float(pdf_size[3] - pdf_size[1]))),
+    )
+    x_2: float = min(
+        pdf_size[2],
+        int(float(box[2]) + x_corrector * (float(pdf_size[2] - pdf_size[0]))),
+    )
+    y_2: float = min(
+        pdf_size[3],
+        int(float(box[3]) + y_corrector * (float(pdf_size[3] - pdf_size[1]))),
+    )
     return x_1, y_1, x_2, y_2
 
-def get_string_from_box(page: Any, box_coords: List[float],  page_size: List[float], x_corrector_value: float=0.01, y_corrector_value: float=0.005) -> str:
+
+def get_string_from_box(
+    page: Any,
+    box_coords: List[float],
+    page_size: List[float],
+    x_corrector_value: float = 0.01,
+    y_corrector_value: float = 0.005,
+) -> str:
     """retrieve the text inside a box
 
     Parameters
@@ -414,19 +442,433 @@ def get_string_from_box(page: Any, box_coords: List[float],  page_size: List[flo
         the text string isnde the box
     """
     # Correct the tablle coordinates acording the the page size
-    x_1, y_1, x_2, y_2 = box_corretor(page_size, box_coords, x_corrector=x_corrector_value, y_corrector=y_corrector_value)
+    x_1, y_1, x_2, y_2 = box_corretor(
+        page_size,
+        box_coords,
+        x_corrector=x_corrector_value,
+        y_corrector=y_corrector_value,
+    )
     table_rect: Any = fitz.Rect(x_1, y_1, x_2, y_2)
     # Retrive the text inside the box
     text: str = page.get_text(
         clip=table_rect,
     )
-    text = text.replace('\n', ' ')
-    text = text.replace('\t', ' ')
-    text = text.replace('- ', ' ')
-    text = text.replace('\u2010 ', ' ')
-    text = text.replace('\u00a0', ' ')
-    text = text.replace(' -', '')
-    text = text.replace('  ', ' ')
-    text = text.replace('   ', ' ')
-    text = text.replace('    ', ' ')
+    text = text.replace("\n", " ")
+    text = text.replace("\t", " ")
+    text = text.replace("- ", " ")
+    text = text.replace("\u2010 ", " ")
+    text = text.replace("\u00a0", " ")
+    text = text.replace(" -", "")
+    text = text.replace("  ", " ")
+    text = text.replace("   ", " ")
+    text = text.replace("    ", " ")
     return text
+
+
+def sobreposition(box_1: List[float], box_2: List[float]) -> float:
+    """Calculate the sobreposition of 2 boxes
+
+    Parameters
+    ----------
+    box_1 : List[float]
+        coordinates of box 1
+    box_2 : List[float]
+        coordinates of box 2
+
+    Returns
+    -------
+    float
+        the sobreposition amount of the two boxes
+    """
+    x_1: float = max(box_1[0], box_2[0])
+    y_1: float = max(box_1[1], box_2[1])
+    x_2: float = min(box_1[2], box_2[2])
+    y_2: float = min(box_1[3], box_2[3])
+    interseption: float = abs(max((x_2 - x_1), 0)) * max((y_2 - y_1), 0)
+    return interseption / ((box_1[2] - box_1[0]) * (box_1[3] - box_1[1]))
+
+
+def order_vertical(box_collumns: List[List[float]]) -> List[List[float]]:
+    """order a list of vertical boxes
+
+    Parameters
+    ----------
+    box_collumns : List[List[float]]
+        List of boxes coordinates
+
+    Returns
+    -------
+    List[List[float]]
+        An ordered list of boxes coordinates
+    """
+    x1_list: List[float] = []
+    for box in box_collumns:
+        x1_list.append(box[0])
+    order_box_index: List[int] = np.argsort(x1_list)
+    new_box_collumns: List[List[float]] = []
+    for index in order_box_index:
+        new_box_collumns.append(box_collumns[index])
+    return new_box_collumns
+
+
+def draw_boxes(
+    file_path: str, output_file: str, box_list: List[List[float]], page: int, zoom=2
+) -> None:
+    """Generate an image from a page with boxes
+
+    Parameters
+    ----------
+    file_path : str
+        path to the pdf file
+    output_file : str
+       name of the output image file
+    box_list : List[float]
+        list of boxes to draw
+    page : int
+        page number
+    zoom : int, optional
+        zoom for the final image, by default 2
+    """
+    document: Any = fitz.open(file_path)
+    page_index: int = page - 1
+    page: Any = document[page_index]
+    for box in box_list:
+        # Create a rectangle object
+        rect: fitz.Rect = fitz.Rect(box[0], box[1], box[2], box[3])
+        # Draw the rectangle in the PDF
+        page.draw_rect(rect, color=[0, 1, 1, 0], overlay=True, width=2, fill_opacity=1)
+    mat: fitz.Matrix = fitz.Matrix(zoom, zoom)
+    # Create a page image
+    pix: Any = page.get_pixmap(matrix=mat)
+    pix.save(output_file)
+
+
+def words_from_line(
+    line: Dict[str, Any], threshold: float, page_area: float
+) -> Dict[str, List[Any]]:
+    """Get all the words inside a line
+
+    Parameters
+    ----------
+    line : Dict[str, Any]
+        Dict containing all words in a line
+    threshold : float
+        maximum distance between two words to consider superscript ou subscript
+    page_area : float
+        area of the page
+
+    Returns
+    -------
+    Dict[str, List[Any]]
+        a dcitionary with all the words and respective boxes inside a line
+    """
+    words_list: List[str] = []
+    box_list: List[List[float]] = []
+    if len(line["spans"]) <= 0:
+        return {"words": words_list, "boxes": box_list}
+    text: List[str] = [line["spans"][0]["text"]]
+    box: List[float] = line["spans"][0]["bbox"]
+    for span in line["spans"][1:]:
+        new_text: str = span["text"]
+        new_box: List[float] = span["bbox"]
+        if box[0] < new_box[0] < box[2]:
+            distance: float = 0
+        else:
+            distance = abs(new_box[0] - box[2])
+        if distance < threshold:
+            text.append(new_text)
+            box = [
+                min(box[0], new_box[0]),
+                min(box[1], new_box[1]),
+                max(box[2], new_box[2]),
+                max(box[3], new_box[3]),
+            ]
+        else:
+            final_text: str = "".join(text)
+            final_text = final_text.replace("\u00a0", "")
+            words_list.append(final_text)
+            box_list.append(box)
+            text = [new_text]
+            box = new_box
+    final_text = "".join(text)
+    final_text = final_text.replace("\u00a0", "")
+    words_list.append(final_text)
+    box_list.append(box)
+    j: int = 0
+    for box in box_list:
+        box_area: float = abs((box[2] - box[0]) * (box[3] - box[1]))
+        if box_area > page_area or box_area == 0:
+            del box_list[j]
+            del words_list[j]
+        else:
+            j += 1
+    return {"words": words_list, "boxes": box_list}
+
+
+def iou_vert(box_1: List[float], box_2: List[float]) -> float:
+    """Calculate the iou of two vertical lines from 2 boxes
+
+    Parameters
+    ----------
+    box_1 : List[float]
+        coordinates of box 1
+    box_2 : List[float]
+        coordinates of box 2
+
+    Returns
+    -------
+    float
+        the iou value of the vertical lines from both boxes
+    """
+    # Determine the box sobreposition
+    interseption: float = max(min(box_1[3], box_2[3]) - max(box_1[1], box_2[1]), 0)
+    # Determine the boxes width
+    box_1_size: float = box_1[3] - box_1[1]
+    box_2_size: float = box_2[3] - box_2[1]
+    return interseption / float(box_1_size + box_2_size - interseption)
+
+
+def word_horiz_box_corrector(
+    words_list: List[str], box_list: List[List[float]], table_coords: List[float]
+) -> Dict[str, List[Any]]:
+    """merges words close together
+
+    Parameters
+    ----------
+    words_list : List[str]
+        list of words to be considered
+    box_list : List[List[float]]
+        list of coordinates of each box
+    table_coords : List[float]
+        table coordinates
+
+    Returns
+    -------
+    Dict[str, List[Any]]
+        a dictionary containing the merged words, their respective coordinates and the table size
+    """
+    j: int = 0
+    while j < len(words_list) - 1:
+        i: int = j + 1
+        while i < len(words_list):
+            if (
+                box_list[j][0] < box_list[i][0] < box_list[j][2]
+                and iou_vert(box_list[j], box_list[i]) > 0.2
+            ):
+                new_word: str = "".join([words_list[j], words_list[i]])
+                new_coords: List[float] = [
+                    min(box_list[j][0], box_list[i][0]),
+                    min(box_list[j][1], box_list[i][1]),
+                    max(box_list[j][2], box_list[i][2]),
+                    max(box_list[j][3], box_list[i][3]),
+                ]
+                words_list.remove(words_list[i])
+                box_list.remove(box_list[i])
+                words_list[j] = new_word
+                box_list[j] = new_coords
+            else:
+                i = i + 1
+        j = j + 1
+    return {"words": words_list, "boxes": box_list, "table_box": table_coords}
+
+
+def iou_horiz(box_1, box_2) -> float:
+    """caluclates the iou of 2 boxes considering only their width
+
+    Parameters
+    ----------
+    box_1 : _type_
+        coordinates of box 1
+    box_2 : _type_
+        coordinates of box 2
+
+    Returns
+    -------
+    float
+        iou of the 2 boxes considering only the width
+    """
+    # Determine the box sobreposition
+    interseption: float = min(box_1[2], box_2[2]) - max(box_1[0], box_2[0])
+    # Determine the boxes width
+    box_1_size: float = box_1[2] - box_1[0]
+    box_2_size: float = box_2[2] - box_2[0]
+    return interseption / float(box_1_size + box_2_size - interseption)
+
+
+def find_legend(
+    page: Any,
+    page_size: List[float],
+    boxes: List[List[float]],
+    types: List[str],
+    index: int,
+    type: str = "Table",
+    block_distance: int = 6,
+    iou_value: float = 0.02,
+) -> str:
+    """retrieve the legend of tables of figures by searching for text close to them
+
+    Parameters
+    ----------
+    page : Any
+        pdf page to be considered
+    page_size : List[float]
+        size of the oage
+    boxes : List[List[float]]
+        list of boxes of the page layout
+    types : List[str]
+        list of the types of the page layout
+    index : int
+        position of the table or figure in the layout list
+    type : str, optional
+        type of the block. It can be 'Table' or 'Figure', by default 'Table'
+    block_distance : int, optional
+        maximum distance between the block and the text legend, by default 6
+    iou_value : float, optional
+       iou threshold to identify duplicated blocks, by default 0.02
+
+    Returns
+    -------
+    str
+        the legend associated with a block
+
+    Raises
+    ------
+    AssertionError
+        if the type is not 'Table' or 'Figure'
+    """
+    if type not in ["Table", "Figure"]:
+        raise AssertionError("The block type is not valid")
+    verification: bool = False
+    extra_verification: bool = False
+    table_names: List[str] = ["Table", "TABLE", "Table.", "TABLE."]
+    figure_names: List[str] = [
+        "Image",
+        "Figure",
+        "Fig.",
+        "Fig",
+        "Figure.",
+        "Scheme",
+        "Scheme.",
+        "FIG",
+        "FIG.",
+        "FIGURE",
+        "FIGURE.",
+        "SCHEME",
+        "SCHEME.",
+    ]
+    legend: str = ""
+    entries_list: List[str] = []
+    if type == "Table":
+        j: int = index - 1
+        while j >= max(0, index - block_distance) and verification is False:
+            # Verify if the it is a text block and the is enough sobreposition
+            if (
+                types[j] in ["Text", "Title"]
+                and iou_horiz(boxes[index], boxes[j]) > iou_value
+            ):
+                entry: str = get_string_from_box(page, boxes[j], page_size)
+                # insert in the beginning of the list
+                entries_list.insert(0, entry)
+                entry_list = entry.split()
+                if len(entry_list) > 0:
+                    # verify if the first word is 'Table'
+                    if entry_list[0] in table_names:
+                        verification = True
+                        legend = "".join(entries_list)
+                        legend = legend.replace("\n", " ")
+            elif types[j] in ["Table", "Figure"] and iou(boxes[index], boxes[j]) > 0.3:
+                print("Probably there is a duplicated Table")
+            elif (
+                types[j] in ["Table", "Figure"]
+                and iou_horiz(boxes[index], boxes[j]) > iou_value
+            ):
+                break
+            j = j - 1
+        j = 0
+        entries_list = []
+        while j < len(boxes) - 1 and verification is False:
+            if (
+                types[j] in ["Text", "Title"]
+                and iou_vert(boxes[index], boxes[j]) > iou_value
+            ):
+                entry = get_string_from_box(page, boxes[j], page_size)
+                # insert in the beginning of the list
+                entry_list = entry.split()
+                if extra_verification is True:
+                    entries_list.append(entry)
+                    verification = True
+                    legend = "".join(entries_list)
+                    legend = legend.replace("\n", " ")
+                elif len(entry_list) > 0:
+                    # verify if the first word is 'Table'
+                    if entry_list[0] in table_names and len(entry_list) < 5:
+                        entries_list.append(entry)
+                        extra_verification = True
+                    elif entry_list[0] in table_names:
+                        entries_list.append(entry)
+                        verification = True
+                        legend = "".join(entries_list)
+                        legend = legend.replace("\n", " ")
+            j = j + 1
+    elif type == "Figure":
+        j = index + 1
+        while (
+            j <= min(len(boxes) - 1, index + block_distance) and verification is False
+        ):
+            # print(types[j])
+            if (
+                types[j] in ["Text", "Title"]
+                and iou_horiz(boxes[index], boxes[j]) > iou_value
+            ):
+                entry = get_string_from_box(page, boxes[j], page_size)
+                # print(f'full entry: {entry}')
+                entries_list.insert(0, entry)
+                entry_list = entry.split()
+                if len(entry_list) > 0:
+                    # print(entry_list[0])
+                    if entry_list[0] in figure_names:
+                        verification = True
+                        legend = "".join(entries_list)
+                        legend = legend.replace("\n", " ")
+            elif types[j] in ["Table", "Figure"] and iou(boxes[index], boxes[j]) > 0.3:
+                print("Probably there is a duplicated Figure")
+            elif (
+                types[j] in ["Table", "Figure"]
+                and iou_horiz(boxes[index], boxes[j]) > iou_value
+            ):
+                break
+            j = j + 1
+        j = 0
+        entries_list = []
+        while j < len(boxes) - 1 and verification is False:
+            # print('Cheguei!!!!!!!!')
+            # print(types[j])
+            # print(boxes[j])
+            if (
+                types[j] in ["Text", "Title"]
+                and iou_vert(boxes[index], boxes[j]) > iou_value
+            ):
+                entry = get_string_from_box(page, boxes[j], page_size)
+                # print(f'full entry is {entry}')
+                # insert in the beginning of the list
+                entry_list = entry.split()
+                if extra_verification is True:
+                    entries_list.append(entry)
+                    verification = True
+                    legend = "".join(entries_list)
+                    legend = legend.replace("\n", " ")
+                elif len(entry_list) > 0:
+                    # verify if the first word is 'Table'
+                    # print(entry_list[0])
+                    # print(len(entry_list))
+                    if entry_list[0] in figure_names and len(entry_list) < 5:
+                        entries_list.append(entry)
+                        extra_verification = True
+                    elif entry_list[0] in figure_names:
+                        print("Cheguei2!!!!!!")
+                        entries_list.append(entry)
+                        verification = True
+                        legend = "".join(entries_list)
+                        legend = legend.replace("\n", " ")
+            j = j + 1
+    return legend
