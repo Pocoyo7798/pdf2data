@@ -451,7 +451,6 @@ class BlockExtractor(BaseModel):
     y_table_corr: float = 0.015
     iou_collumns: float = 0.1
     iou_struct: float = 0.02
-    vert_words_value: float = 0.1
     word_factor: float = 1
     word_iou: float = 0.04
     reconstructor_type: str = "entry_by_entry"
