@@ -1,14 +1,19 @@
 import os
 from typing import Any, Dict, List, Optional
 
+import cv2
+import fitz
 import layoutparser as lp
 import PyPDF2
+import tensorflow as tf
 import torch
 from pdf2image import convert_from_path
+from PIL import Image, ImageDraw, ImageEnhance
 from pydantic import BaseModel, PrivateAttr
 from transformers import DetrImageProcessor, TableTransformerForObjectDetection
 
-from pdf2data.support import block_organizer, iou, order_horizontal
+from pdf2data.support import (block_organizer, box_corretor, iou,
+                              order_horizontal, order_vertical, sobreposition)
 
 
 class LayoutParser(BaseModel):
@@ -284,14 +289,19 @@ class LayoutParser(BaseModel):
                     self._model,
                     page,
                     width,
+                    pdf_width,
                     height,
                     pdf_height,
-                    pdf_width,
                     self.model_threshold,
                 )
             else:
                 first_layout = LayoutParser.generate_layout_lp(
-                    self._model, page, width, height, pdf_height, pdf_width
+                    self._model,
+                    page,
+                    width,
+                    pdf_width,
+                    height,
+                    pdf_height,
                 )
             boxes: List[List[float]] = first_layout["boxes"]
             scores: List[float] = first_layout["scores"]
@@ -306,14 +316,19 @@ class LayoutParser(BaseModel):
                         self._table_model,
                         page,
                         width,
+                        pdf_width,
                         height,
                         pdf_height,
-                        pdf_width,
                         self.model_threshold,
                     )
                 else:
                     sec_layout = LayoutParser.generate_layout_lp(
-                        self._table_model, page, width, height, pdf_height, pdf_width
+                        self._table_model,
+                        page,
+                        width,
+                        pdf_width,
+                        height,
+                        pdf_height,
                     )
                 table_boxes1: List[List[float]] = sec_layout["table_boxes"]
                 table_scores1: List[float] = sec_layout["table_scores"]
@@ -372,6 +387,194 @@ class LayoutParser(BaseModel):
         extracted_blocks["types"] = doc_types
         extracted_blocks["page_type"] = exist_page
         return extracted_blocks
+
+
+class TableStructureParser(BaseModel):
+    model: str
+    model_threshold: float = 0.7
+    x_corrector_value: float = 0.015
+    y_corrector_value: float = 0.02
+    zoom: float = 1.3
+    iou_collumns: float = 0.1
+    iou_struct: float = 0.02
+    iou_vert_words: float = 0.15
+    _model: Any = PrivateAttr(default=None)
+    _existing_models: set = PrivateAttr(
+        default=set(["microsoft/table-transformer-structure-recognition"])
+    )
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.model not in self._existing_models:
+            raise AttributeError(
+                f"The specified model is not available, the available, models are {self._existing_models}"
+            )
+        self._model = TableTransformerForObjectDetection.from_pretrained(self.model)
+
+    def table_image_structure(
+        self,
+        file_path: str,
+        open_image_type: str = "pillow",
+        brightness: float = 1,
+        contrast: float = 1.1,
+    ) -> Any:
+        """Get the table structure from a table image
+
+        Parameters
+        ----------
+        file_path : str
+            path to the file containing the table image
+        open_image_type : str, optional
+            library to open the image, by default "pillow"
+        brightness : float, optional
+            brightness of the image, by default 1
+        contrast : float, optional
+            contrast of the image, by default 1.1
+
+        Returns
+        -------
+        Any
+            the rows and collumns coordinates, and the witdh and height of the image
+        """
+        if open_image_type == "pillow":
+            image: Any = Image.open(file_path).convert("RGB")
+            brighter: Any = ImageEnhance.Brightness(image)
+            new_image: Any = brighter.enhance(brightness)
+            contraster: Any = ImageEnhance.Contrast(new_image)
+            final_image: Any = contraster.enhance(contrast)
+            width, height = image.size
+        else:
+            image = cv2.imread(file_path)
+            dimensions: List[float] = image.shape
+            height = dimensions[0]
+            width = dimensions[1]
+            final_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCR_CB)
+        feature_extractor = DetrImageProcessor()
+        encoding: Any = feature_extractor(final_image, return_tensors="pt")
+        encoding.keys()
+        with torch.no_grad():
+            outputs: Any = self._model(**encoding)
+        results: Dict[str, Any] = feature_extractor.post_process_object_detection(
+            outputs, threshold=self.model_threshold, target_sizes=[(height, width)]
+        )[0]
+        # Transform a tensor in a list
+        labels = results["labels"].tolist()
+        boxes = results["boxes"].tolist()
+        scores = results["scores"].tolist()
+        return labels, boxes, scores, width, height
+
+    def get_table_structure(
+        self,
+        pdf: Any,
+        page_index: int,
+        table_coords: List[List[float]],
+        word_boxes: Dict[str, List[List[float]]] = {},
+    ) -> Dict[str, List[List[float]]]:
+        """Get the table structure from a table in a pdf
+
+        Parameters
+        ----------
+        pdf : Any
+            pdf document
+        page_index : int
+            index of the page containing the table
+        table_coords : List[List[float]]
+            table coordinates
+        word_boxes : Dict[str, List[List[float]]], optional
+            dicionary with the rows and collumns obtained using the table words, by default {}
+
+        Returns
+        -------
+        Dict[str, List[List[float]]]
+            A dicitonary containing the rows a collumns ordered
+        """
+        page_for_zoom: Any = pdf[page_index]
+        pdf_size: List[float] = page_for_zoom.mediabox
+        # Correct the tablle coordinates acording the the page size
+        x_1, y_1, x_2, y_2 = box_corretor(
+            pdf_size,
+            table_coords,
+            x_corrector=self.x_corrector_value,
+            y_corrector=self.y_corrector_value,
+        )
+        table_rect: fitz.Rect = fitz.Rect(x_1, y_1, x_2, y_2)
+        # apply zoom to increase resolution
+        mat: fitz.Matrix = fitz.Matrix(self.zoom, self.zoom)
+        image: Any = page_for_zoom.get_pixmap(matrix=mat, clip=table_rect)
+        image.save("image.png")
+        labels, boxes, scores, width, height = self.table_image_structure("image.png")
+        rows: List[List[float]] = []
+        collumns: List[List[float]] = []
+        row_scores: List[float] = []
+        collumns_scores: List[float] = []
+        for i in range(len(boxes)):
+            if labels[i] == 2:
+                # Correct the coordinates
+                x1: float = x_1 + boxes[i][0] / width * float(x_2 - x_1)
+                y1: float = y_1 + boxes[i][1] / height * float(y_2 - y_1)
+                x2: float = x_1 + boxes[i][2] / width * float(x_2 - x_1)
+                y2: float = y_1 + boxes[i][3] / height * float(y_2 - y_1)
+                coords: List[float] = [x1, y1, x2, y2]
+                if iou(coords, table_coords) > self.iou_struct:
+                    rows.append(coords)
+                    row_scores.append(scores[i])
+            elif labels[i] == 1:
+                x1 = x_1 + boxes[i][0] / width * float(x_2 - x_1)
+                y1 = y_1 + boxes[i][1] / height * float(y_2 - y_1)
+                x2 = x_1 + boxes[i][2] / width * float(x_2 - x_1)
+                y2 = y_1 + boxes[i][3] / height * float(y_2 - y_1)
+                coords = [x1, y1, x2, y2]
+                if iou(coords, table_coords) > self.iou_struct:
+                    collumns.append(coords)
+                    collumns_scores.append(scores[i])
+        if len(rows) > 0:
+            supressed_rows: List[KeyboardInterrupt] = tf.image.non_max_suppression(
+                rows,
+                row_scores,
+                max_output_size=1000,
+                iou_threshold=self.iou_rows,
+                score_threshold=float("-inf"),
+                name=None,
+            )
+            real_rows: List[List[float]] = []
+            for index in supressed_rows:
+                real_rows.append(rows[index])
+        else:
+            real_rows = rows
+        if len(collumns) > 0:
+            supressed_collumns: List[int] = tf.image.non_max_suppression(
+                collumns,
+                collumns_scores,
+                max_output_size=1000,
+                iou_threshold=self.iou_collumns,
+                score_threshold=float("-inf"),
+                name=None,
+            )
+            real_collumns: List[List[float]] = []
+            for index in supressed_collumns:
+                real_collumns.append(collumns[index])
+        else:
+            real_collumns = collumns
+        if "rows" in word_boxes.keys():
+            word_rows: List[List[float]] = word_boxes["rows"]
+        else:
+            word_rows = []
+        for row1 in word_rows:
+            exists_row: bool = False
+            for row2 in real_rows:
+                if (
+                    iou(row1, row2) > self.iou_vert_words
+                    or sobreposition(row1, table_coords) < 0.5
+                ):
+                    exists_row = True
+                    break
+            if exists_row is False:
+                real_rows.append(row1)
+        # Order from top to bottom
+        ordered_rows: List[List[float]] = order_horizontal(real_rows)
+        # Order from left to right
+        ordered_collumns: List[List[float]] = order_vertical(real_collumns)
+        # os.remove('image.png')
+        return {"rows": ordered_rows, "collumns": ordered_collumns}
 
 
 LAYOUT_PARSER_LABELS_REGISTRY: Dict[str, Dict[int, str]] = {

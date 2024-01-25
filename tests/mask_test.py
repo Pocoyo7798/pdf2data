@@ -1,7 +1,8 @@
 import importlib_resources
 import pytest
+import fitz
 
-from pdf2data.mask import LayoutParser
+from pdf2data.mask import LayoutParser, TableStructureParser
 
 
 def test_layoutparser():
@@ -21,3 +22,15 @@ def test_layoutparser():
     assert layout["scores"] != 0
     assert layout["types"] != 0
     assert layout["page_type"] != 0
+
+def test_table_structure():
+    parser = TableStructureParser(model="microsoft/table-transformer-structure-recognition")
+    parser.model_post_init(None)
+    file_path: str = str(
+        importlib_resources.files("pdf2data") / "resources" / "test.pdf"
+    )
+    document = fitz.open(file_path)
+    page_index = 2
+    table_box = [30.076650027310833, 86.22508175565758, 563.0077171396165, 156.38635419585557]
+    table_structure = parser.get_table_structure(document, page_index, table_box)
+    assert len(table_structure["collumns"]) > 4
