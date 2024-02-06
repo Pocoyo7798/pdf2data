@@ -23,7 +23,7 @@ requirements = [
     "layoutparser>=0.3.4",
     "tensorflow>=2.13.1",
     "layoutparser[layoutmodels]",
-    "cython>=3.0.8",
+    "cython<=3.0.8",
     "effdet<=0.3.0",
     "pillow<=9.1.0",
     "levenshtein<=0.24.0",
