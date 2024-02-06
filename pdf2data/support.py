@@ -2,6 +2,7 @@ import os
 from difflib import SequenceMatcher
 from io import BytesIO
 from typing import Any, Container, Dict, List
+from Levenshtein import ratio
 
 import fitz
 import numpy as np
@@ -872,3 +873,301 @@ def find_legend(
                         legend = legend.replace("\n", " ")
             j = j + 1
     return legend
+
+
+def calc_metrics(true_positives: int, false_positives: int, false_negatives: int) -> Dict[str, float]:
+    """Calculate de precision, recall and f-score
+
+    Parameters
+    ----------
+    true_positives : int
+       number of true positives
+    false_positives : int
+        number of false positives
+    false_negatives : int
+        number of false negatives
+
+    Returns
+    -------
+    Dict[str, float]
+        A dicionary containing the precision, recall and f-score
+    """
+    if true_positives == 0:
+        precision: float = 0
+        recall: float = 0
+        f_score: float = 0
+    else:
+        precision = true_positives / (true_positives + false_positives)
+        recall = true_positives / (true_positives + false_negatives)
+        f_score = 2 * precision * recall / (precision + recall)
+    return {'precision': precision, 'recall': recall, 'f_score': f_score}
+
+def verify_boxes(box: List[float], page: int, box_list: List[List[float]], page_list:List[int], iou_value: float=0.85, get_index: bool=False) -> Any:
+    """Verify if a box exists inside a list of boxes
+
+    Parameters
+    ----------
+    box : List[float]
+        box coordinates
+    page : int
+        box page number
+    box_list : List[List[float]]
+        list of boxes to consider
+    page List : List[int]
+        list of boxes page list
+    iou_value : float, optional
+        iou threshold to consider that two boxes are the same, by default 0.85
+    get_index : bool, optional
+        True to get the box index in the list, False otherwise, by default False
+
+    Returns
+    -------
+    Any
+        True if the box exists inside the list and False otherwise, giving the box index optionally
+    """
+    index: int = 0
+    if len(page_list) > 0:
+        for coords in box_list:
+            box_iou: float = iou(box, coords)
+            ref_page = page_list[index]
+            if ref_page > page:
+                break
+            if box_iou > iou_value and get_index is True and ref_page == page:
+                return True, index
+            elif box_iou > iou_value and ref_page == page:
+                return True
+            index = index + 1
+    else:
+        for coords in box_list:
+            box_iou: float = iou(box, coords)
+            if box_iou > iou_value and get_index is True:
+                return True, index
+            elif box_iou > iou_value:
+                return True
+            index = index + 1
+    if get_index is True:
+        return False, None
+    else:
+        return False
+    
+def verify_string(ref_string: str, string: str, threshold: float=0.8) -> bool:
+    """Verify if two strings are similar
+
+    Parameters
+    ----------
+    ref_string : str
+        string one
+    string : str
+        string two
+    threshold : float, optional
+        similarity threshold to consider two strings similar, by default 0.8
+
+    Returns
+    -------
+    bool
+        True if the two string are similar, False otherwise
+    """
+    ref_string = ref_string.replace(' ', '').lower()
+    string = string.replace(' ', '').lower()
+    similarity: float = SequenceMatcher(None, ref_string, string).ratio()
+    if similarity >= threshold:
+        return True
+    return False
+
+def verify_string_list(ref_word: str, word_list: List[float], get_index: bool=True, threshold_value: float=0.8) -> Any:
+    """Verify if a string exists inside a list of strings
+
+    Parameters
+    ----------
+    ref_word : str
+        string to consider
+    word_list : List[float]
+        List of strings
+    get_index : bool, optional
+        True to return also de string index, False otherwise, by default True
+    threshold_value : float, optional
+        Similarity threshold to consider two strings similar, by default 0.8
+
+    Returns
+    -------
+    Any
+        True if the string exist inside the list, False otherwise. Also return the string index optionally
+    """
+    j: int = 0
+    for word in word_list:
+        test: bool = verify_string(ref_word, word, threshold=threshold_value)
+        if test is True and get_index  is True:
+            return True, j
+        elif test is True:
+            return True
+        j = j + 1
+    if get_index is True:
+        return False, None
+    return False
+
+def get_block_info(block_list: List[Dict[str, Any]]) -> Any:
+    """get all the info about the block inside lists
+
+    Parameters
+    ----------
+    block_list : List[Dict[str, Any]]
+        list of all the blocks
+
+    Returns
+    -------
+    Any
+        returns lists containing the blocks info
+    """
+    table_boxes: List[List[float]] = []
+    table_legends: List[str] = []
+    table_pages: List[int] = []
+    table_structure: List[List[List[str]]] = []
+    table_row_indexes: List[int] = []
+    table_collumn_headers: List[int] = []
+    figure_boxes: List[List[float]] = []
+    figure_legends: List[str] = []
+    figure_pages: List[int] = []
+    if block_list == []:
+        return table_boxes, table_legends, table_pages, table_structure, table_row_indexes, table_collumn_headers, figure_boxes, figure_legends, figure_pages
+    for block in block_list:
+        if block['type'] == 'Table':
+            table_boxes.append(block['box'])
+            table_legends.append(block['legend'])
+            table_pages.append(block["page"])
+            table_structure.append(block['block'])
+            table_row_indexes.append(block['row_indexes'])
+            table_collumn_headers.append(block['collumn_headers'])
+        else:
+            figure_boxes.append(block['box'])
+            figure_legends.append(block['legend'])
+            figure_pages.append(block["page"])
+    return table_boxes, table_legends,table_pages, table_structure, table_row_indexes, table_collumn_headers, figure_boxes, figure_legends, figure_pages
+
+def verify_table_strucuture(ref_table: List[List[str]], table: List[List[str]]) -> Dict[str, Any]:
+    """compare the table structure of 2 tables
+
+    Parameters
+    ----------
+    ref_table : List[List[str]]
+        reference table
+    table : List[List[str]]
+        table extracted
+
+    Returns
+    -------
+    Dict[str, Any]
+        a dictionary containing the false positives, false negatives, true positves and if the tables strcuture are similar
+    """
+    if len(table) == 0:
+        if len(ref_table) == 0:
+            true_positives: int = 1
+            false_positives: int = 0
+            false_negatives: int = 0
+            equal_structure: int = True
+        else:
+            true_positives = 0
+            false_positives = 0
+            false_negatives = len(ref_table)
+            equal_structure = False
+    else:
+        true_positives = min(len(ref_table), len(table)) + min(len(ref_table[0]), len(table[0]))
+        false_positives = max(0, len(table) - len(ref_table)) + max(0, len(table[0]) - len(ref_table[0]))
+        false_negatives = max(0, len(ref_table) - len(table)) + max(0, len(ref_table[0]) - len(table[0]))
+        if false_positives == 0 and false_negatives == 0:
+            equal_structure: bool = True
+        else:
+            equal_structure = False
+    return {'true_positives': true_positives, 'false_positives': false_positives, 'false_negatives': false_negatives, 'correct_structure': equal_structure}
+
+def verify_lists(list1: List[Any], list2: List[Any], dev: bool = False) -> Dict[str, Any]:
+    """Compare two lists with eachother
+
+    Parameters
+    ----------
+    list1 : List[Any]
+        first list
+    list2 : List[Any]
+        second list
+    dev : bool, optional
+        If True give extra information on how the method is working, by default False
+
+    Returns
+    -------
+    Dict[str, Any]
+        A dictinary with the number of true positives, false positives and false negatives of list1 in list2
+    """
+    true_positives: int = 0
+    false_positives: int = len(list2)
+    false_negatives: int = 0
+    for ref_entry in list1:
+        exists_entry: bool = False
+        for entry in list2:
+            if ref_entry == entry:
+                exists_entry = True
+                true_positives = true_positives + 1
+                false_positives = false_positives - 1
+                if dev is True:
+                    print(f'found {ref_entry} in {list2}')
+                break
+        if exists_entry is False:
+            false_negatives = false_negatives + 1
+            if dev is True:
+                    print(f'did not found {ref_entry} in {list2}')
+    return {'true_positives': true_positives, 'false_positives': false_positives, 'false_negatives': false_negatives}
+
+def entries_similarity_horizontal(ref_structure: List[List[str]], structure: List[List[str]]) -> float:
+    """Calculate the degree of similarity between two tables, by transforming them into string horizontally
+
+    Parameters
+    ----------
+    ref_structure : List[List[str]]
+        reference table
+    structure : List[List[str]]
+        table to be comapared
+
+    Returns
+    -------
+    float
+        the levenshtein ratio between the two tables
+    """
+    ref: List[str] = []
+    for line in ref_structure:
+        for entry in line:
+            ref.append(entry)
+    test: List[str] =[]
+    for line in structure:
+        for entry in line:
+            test.append(entry)
+    ref_string: str = "".join(ref)
+    test_string: str = "".join(test)
+    ref_string = ref_string.replace(" ", "").lower()
+    test_string = test_string.replace(" ", "").lower()
+    return ratio(ref_string, test_string)
+
+def entries_similarity_vertical(ref_structure: List[List[str]], structure: List[List[str]]) -> float:
+    """Calculate the degree of similarity between two tables, by transforming them into string vertically
+
+    Parameters
+    ----------
+    ref_structure : List[List[str]]
+        reference table
+    structure : List[List[str]]
+        table to be comapared
+    Returns
+    -------
+    float
+        the levenshtein ratio between the two tables
+    """
+    ref: List[str] = []
+    test: List[str] =[]
+    for j in range(len(ref_structure[0])):
+        for i in range(len(ref_structure)):
+            ref.append(ref_structure[i][j])
+    for j in range(len(structure[0])):
+        for i in range(len(structure)):
+            test.append(structure[i][j])
+    ref_string: str = "".join(ref)
+    test_string: str = "".join(test)
+    ref_string = ref_string.replace(" ", "").lower()
+    test_string = test_string.replace(" ", "").lower()
+    return ratio(ref_string, test_string)

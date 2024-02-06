@@ -99,7 +99,7 @@ class LayoutParser(BaseModel):
                 )
             else:
                 model_config = LAYOUT_PARSER_CONFIG_REGISTRY[self.table_model]
-                self._model = lp.Detectron2LayoutModel(
+                self._table_model = lp.Detectron2LayoutModel(
                     config_path=model_config,  # In model catalog
                     label_map=labels,  # In model`label_map`
                     extra_config=[
@@ -396,6 +396,7 @@ class TableStructureParser(BaseModel):
     y_corrector_value: float = 0.02
     zoom: float = 1.3
     iou_collumns: float = 0.1
+    iou_rows: float = 0.05
     iou_struct: float = 0.02
     iou_vert_words: float = 0.15
     _model: Any = PrivateAttr(default=None)

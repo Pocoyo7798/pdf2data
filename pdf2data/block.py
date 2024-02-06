@@ -360,8 +360,8 @@ class Table(BaseModel):
         """
         i_vertical: int = 1
         # Go through all entries in the table
-        self.collumn_headers = self.find_collumn_headers()
-        self.row_indexes = self.find_row_indexes()
+        self.find_collumn_headers()
+        self.find_row_indexes()
         self.legend = find_legend(
             page, page_size, layout_boxes, layout_types, index, type=self.type
         )
@@ -578,7 +578,7 @@ class BlockExtractor(BaseModel):
                         image_number: int = image_number + 1
                         image_name: str = f"Figure{image_number}.tiff"
                         figure: Figure = Figure(
-                            page=j, name=image_name, number=image_number, box=box
+                            page=j + 1, name=image_name, number=image_number, box=box
                         )
                         block_dict: Dict[str, Any] = figure.create_dict(
                             page,

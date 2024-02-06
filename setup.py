@@ -26,6 +26,7 @@ requirements = [
     "cython>=3.0.8",
     "effdet<=0.3.0",
     "pillow<=9.1.0",
+    "levenshtein<=0.24.0",
 ]
 
 test_requirements = [
@@ -54,7 +55,10 @@ setup(
             "pdf2data=pdf2data.cli.cli:main",
             "pdf2data_metadata=pdf2data.cli.metadata_finder:main",
             "pdf2data_references=pdf2data.cli.reference_extractor:main",
-            "pdf2data_text=pdf2data.cli.text_extractor:main"
+            "pdf2data_text=pdf2data.cli.text_extractor:main",
+            "pdf2data_block=pdf2data.cli.block_extractor:main",
+            "pdf2data_eval=pdf2data.cli.evaluator:main",
+            "pdf2data_detect_image=pdf2data.cli.table_detector:main"
         ],
     },
     install_requires=requirements,
