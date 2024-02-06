@@ -11,7 +11,7 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "Click<=7.1.2",
+    "Click<=8.1.7",
     "numpy>=1.24.3",
     "pydantic<2.0",
     "beautifulsoup4>=4.12.3",
