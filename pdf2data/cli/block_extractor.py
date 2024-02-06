@@ -79,7 +79,7 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--word_factor",
-    default=1,
+    default=1.0,
     help="factor used to determine the maximum distance to consider two different words as a single table entry",
 )
 @click.option(
@@ -99,13 +99,12 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--iou_max",
-    default=1,
+    default=1.0,
     help="maximum value of iou, to change the table obtained from the table model for the one obtained from the layout model",
 )
 def block_extractor(
     input_folder: str,
     output_folder: str,
-    iou_max: float,
     layout_model: str,
     table_model: str,
     layout_model_threshold: float,
@@ -123,8 +122,10 @@ def block_extractor(
     word_iou: float,
     struct_model_threshold: float,
     reconstructor_type: str,
+    iou_max: float
 ) -> None:
     file_list: List[str] = get_doc_list(input_folder, "pdf")
+    print(file_list)
     extractor: BlockExtractor = BlockExtractor(
         extract_tables=extract_tables,
         extract_figures=extract_figures,
@@ -152,3 +153,10 @@ def block_extractor(
         file_path: str = input_folder + "/" + file
         layout = mask.get_layout(file_path, iou_max)
         extractor.get_blocks(file_path, layout, output_folder)
+
+def main():
+    block_extractor()
+
+
+if __name__ == "__main__":
+    main()
