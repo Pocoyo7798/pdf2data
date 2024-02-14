@@ -269,6 +269,7 @@ class Table(BaseModel):
     number: int = 0
     legend: str = ""
     box: List[float] = []
+    letter_ratio: float = 3
 
     def find_collumn_headers(self) -> None:
         """find the collumn headers as rows that do not have numbers"""
@@ -285,11 +286,13 @@ class Table(BaseModel):
                 find_number = False
                 for entry in self.block[row_number]:
                     if entry == "":
-                        test: Optional[bool] = True
+                        digits: int = 0
+                        letters: int = 0
                     else:
-                        test = re.search("[a-zA-Z]", entry)
+                        digits = len(re.findall("[1-9]", entry))
+                        letters = len(re.findall("[a-zA-Z]", entry))
                     # Verify if the entry as any letter
-                    if test is None:
+                    if digits > self.letter_ratio * letters:
                         find_number = True
                         break
             self.collumn_headers = collumn_headers
@@ -323,7 +326,7 @@ class Table(BaseModel):
                         # print(f'{row[collumn_number]} presents {digits} digits and {letters} letters')
                     # Verify if the entry as any letter
                     # if test is None:
-                    if digits > 3 * letters:
+                    if digits > self.letter_ratio * letters:
                         find_number = True
                         break
                 if find_number is False:
@@ -385,7 +388,9 @@ class Table(BaseModel):
                         self.block[i_horizontal][j_horizontal] = new_entry_horiz
                 j_horizontal = j_horizontal + 1
             i_vertical = i_vertical + 1
-        return self.__dict__
+        result = self.__dict__
+        del result["letter_ratio"]
+        return result
 
 
 class Figure(BaseModel):
@@ -449,10 +454,13 @@ class BlockExtractor(BaseModel):
     figure_zoom: float = 1
     x_table_corr: float = 0.015
     y_table_corr: float = 0.015
-    iou_collumns: float = 0.1
+    iou_lines: float = 0.05
     iou_struct: float = 0.02
     word_factor: float = 1
     word_iou: float = 0.04
+    brightness: float = 1
+    contrast: float = 1
+    letter_ratio: float = 4
     reconstructor_type: str = "entry_by_entry"
     structure_model: str = "microsoft/table-transformer-structure-recognition"
     struct_model_threshold: float = 0.3
@@ -468,8 +476,10 @@ class BlockExtractor(BaseModel):
             x_corrector_value=self.x_table_corr,
             y_corrector_value=self.y_table_corr,
             zoom=self.table_zoom,
-            iou_collumns=self.iou_collumns,
+            iou_lines=self.iou_lines,
             iou_struct=self.iou_struct,
+            brightness=self.brightness,
+            contrast = self.contrast
         )
         self._word_extractor = TableWords(word_proximity_factor=self.word_factor)
         self._structure_parser.model_post_init(None)
@@ -566,7 +576,7 @@ class BlockExtractor(BaseModel):
                                 "The reconstructor_type is not valid. Try 'entry_by_entry' or 'word_by_word'"
                             )
                         table: Table = Table(
-                            page=j + 1, block=block, number=table_number, box=box
+                            page=j + 1, block=block, number=table_number, box=box, letter_ratio=self.letter_ratio
                         )
                         block_dict: Dict[str, Any] = table.create_dict(
                             page, pdf_size, page_boxes, page_types, i

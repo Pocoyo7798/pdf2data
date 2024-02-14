@@ -25,11 +25,17 @@ from pdf2data.support import get_doc_list
     default="jpg",
     help="image file format",
 )
+@click.option(
+    "--device_type",
+    default="cpu",
+    help="device type to run the code. Ex: 'cuda'. cpu, etc...",
+)
 
-def table_detector(input_folder: str, eval_file: str, model: str, model_threshold: str, image_type: str):
+def table_detector(input_folder: str, eval_file: str, model: str, model_threshold: str, image_type: str, device_type: str):
     mask: LayoutParser = LayoutParser(
         model=model,
-        model_threshold=model_threshold
+        model_threshold=model_threshold,
+        device_type=device_type
     )
     mask.model_post_init(None)
     images: List[str] = get_doc_list(input_folder, "." + image_type)

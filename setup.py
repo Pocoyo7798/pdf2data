@@ -19,7 +19,7 @@ requirements = [
     "bibcure>=0.3.0",
     "importlib_resources>=6.1.1",
     "lxml>=5.1.0",
-    "transformers>=4.36.2",
+    "transformers>=4.29.2",
     "layoutparser>=0.3.4",
     "tensorflow>=2.13.1",
     "layoutparser[layoutmodels]",

@@ -30,7 +30,12 @@ from pdf2data.text import TextExtractor, TextFileGenerator
     default=0.8,
     help="layout model threshold",
 )
-def text_extractor(input_folder: str, output_folder: Optional[str], type: str, layout_model: str, model_threshold: float) -> None:
+@click.option(
+    "--device_type",
+    default="cpu",
+    help="device type to run the code. Ex: 'cuda'. cpu, etc...",
+)
+def text_extractor(input_folder: str, output_folder: Optional[str], type: str, layout_model: str, model_threshold: float, device_type: str) -> None:
     if output_folder is None:
         output_folder = input_folder
     elif os.path.isdir(output_folder) is False:
@@ -42,7 +47,7 @@ def text_extractor(input_folder: str, output_folder: Optional[str], type: str, l
         )
     if type == "layoutparser":
         mask: LayoutParser = LayoutParser(
-            model=layout_model, model_threshold=model_threshold
+            model=layout_model, model_threshold=model_threshold, device_type=device_type
         )
         mask.model_post_init(None)
         docs: List[str] = get_doc_list(input_folder, ".pdf")
