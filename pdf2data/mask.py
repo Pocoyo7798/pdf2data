@@ -23,6 +23,7 @@ class LayoutParser(BaseModel):
     table_model_threshold: float = 0.7
     model_path: Optional[str] = None
     table_model_path: Optional[str] = None
+    device_type: str = "gpu"
     _model: Any = PrivateAttr(default=None)
     _table_model: Any = PrivateAttr(default=None)
     _existing_models: List[str] = PrivateAttr(
@@ -61,6 +62,7 @@ class LayoutParser(BaseModel):
             self._model = lp.Detectron2LayoutModel(
                 f"{self.model_path}/config.yaml",
                 f"{self.model_path}/model_final.pth",
+                device=self.device_type,
                 extra_config=[
                     "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
                     self.model_threshold,
@@ -72,6 +74,7 @@ class LayoutParser(BaseModel):
             self._model = lp.Detectron2LayoutModel(
                 config_path=model_config,  # In model catalog
                 label_map=labels,  # In model`label_map`
+                device=self.device_type,
                 extra_config=[
                     "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
                     self.model_threshold,
@@ -91,6 +94,7 @@ class LayoutParser(BaseModel):
                 self._model = lp.Detectron2LayoutModel(
                     f"{self.table_model_path}/config.yaml",
                     f"{self.table_model_path}/model_final.pth",
+                    device=self.device_type,
                     extra_config=[
                         "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
                         self.table_model_threshold,
@@ -102,9 +106,10 @@ class LayoutParser(BaseModel):
                 self._table_model = lp.Detectron2LayoutModel(
                     config_path=model_config,  # In model catalog
                     label_map=labels,  # In model`label_map`
+                    device=self.device_type,
                     extra_config=[
                         "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
-                        self.model_threshold,
+                        self.model_threshold
                     ],  # Optional
                 )
 
@@ -395,10 +400,11 @@ class TableStructureParser(BaseModel):
     x_corrector_value: float = 0.015
     y_corrector_value: float = 0.02
     zoom: float = 1.3
-    iou_collumns: float = 0.1
-    iou_rows: float = 0.05
+    iou_lines: float = 0.05
     iou_struct: float = 0.02
     iou_vert_words: float = 0.15
+    brightness: float = 1
+    contrast: float = 1
     _model: Any = PrivateAttr(default=None)
     _existing_models: set = PrivateAttr(
         default=set(["microsoft/table-transformer-structure-recognition"])
@@ -415,8 +421,6 @@ class TableStructureParser(BaseModel):
         self,
         file_path: str,
         open_image_type: str = "pillow",
-        brightness: float = 1,
-        contrast: float = 1.1,
     ) -> Any:
         """Get the table structure from a table image
 
@@ -439,9 +443,9 @@ class TableStructureParser(BaseModel):
         if open_image_type == "pillow":
             image: Any = Image.open(file_path).convert("RGB")
             brighter: Any = ImageEnhance.Brightness(image)
-            new_image: Any = brighter.enhance(brightness)
+            new_image: Any = brighter.enhance(self.brightness)
             contraster: Any = ImageEnhance.Contrast(new_image)
-            final_image: Any = contraster.enhance(contrast)
+            final_image: Any = contraster.enhance(self.contrast)
             width, height = image.size
         else:
             image = cv2.imread(file_path)
@@ -532,7 +536,7 @@ class TableStructureParser(BaseModel):
                 rows,
                 row_scores,
                 max_output_size=1000,
-                iou_threshold=self.iou_rows,
+                iou_threshold=self.iou_lines,
                 score_threshold=float("-inf"),
                 name=None,
             )
@@ -546,7 +550,7 @@ class TableStructureParser(BaseModel):
                 collumns,
                 collumns_scores,
                 max_output_size=1000,
-                iou_threshold=self.iou_collumns,
+                iou_threshold=self.iou_lines,
                 score_threshold=float("-inf"),
                 name=None,
             )

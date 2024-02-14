@@ -1163,7 +1163,11 @@ def entries_similarity_vertical(ref_structure: List[List[str]], structure: List[
     for j in range(len(ref_structure[0])):
         for i in range(len(ref_structure)):
             ref.append(ref_structure[i][j])
-    for j in range(len(structure[0])):
+    if len(structure) == 0:
+        size = 0
+    else:
+        size = len(structure[0])
+    for j in range(size):
         for i in range(len(structure)):
             test.append(structure[i][j])
     ref_string: str = "".join(ref)

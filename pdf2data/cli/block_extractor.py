@@ -24,7 +24,7 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--table_model",
-    default="TableBank_faster_rcnn_R_101_FPN_3x",
+    default=None,
     help="model used to identify the tables",
 )
 @click.option(
@@ -68,9 +68,9 @@ from pdf2data.support import get_doc_list
     help="factor correct the table coordinates in the y axis",
 )
 @click.option(
-    "--iou_collumns",
+    "--iou_lines",
     default=0.1,
-    help="iou value to supress collumns",
+    help="iou value to supress collumns and rows",
 )
 @click.option(
     "--iou_struct",
@@ -89,7 +89,7 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--struct_model_threshold",
-    default=0.3,
+    default=0.9,
     help="table structure detection model threshold",
 )
 @click.option(
@@ -101,6 +101,21 @@ from pdf2data.support import get_doc_list
     "--iou_max",
     default=1.0,
     help="maximum value of iou, to change the table obtained from the table model for the one obtained from the layout model",
+)
+@click.option(
+    "--brightness",
+    default=1.0,
+    help="brightness factor of the Table image",
+)
+@click.option(
+    "--contrast",
+    default=1.0,
+    help="contrast factor of the Table image",
+)
+@click.option(
+    "--device",
+    default="cpu",
+    help="device to run the mask models",
 )
 def block_extractor(
     input_folder: str,
@@ -116,16 +131,20 @@ def block_extractor(
     figure_zoom: float,
     x_table_corr: float,
     y_table_corr: float,
-    iou_collumns: float,
+    iou_lines: float,
     iou_struct: float,
     word_factor: float,
     word_iou: float,
     struct_model_threshold: float,
     reconstructor_type: str,
-    iou_max: float
+    iou_max: float,
+    brightness: float,
+    contrast: float,
+    device: str
 ) -> None:
+    if os.path.isdir(output_folder) is False:
+        os.mkdir(output_folder)
     file_list: List[str] = get_doc_list(input_folder, "pdf")
-    print(file_list)
     extractor: BlockExtractor = BlockExtractor(
         extract_tables=extract_tables,
         extract_figures=extract_figures,
@@ -134,12 +153,14 @@ def block_extractor(
         figure_zoom=figure_zoom,
         x_table_corr=x_table_corr,
         y_table_corr=y_table_corr,
-        iou_collumns=iou_collumns,
+        iou_lines=iou_lines,
         iou_struct=iou_struct,
         word_factor=word_factor,
         word_iou=word_iou,
         struct_model_threshold=struct_model_threshold,
         reconstructor_type=reconstructor_type,
+        brightness=brightness,
+        contrast=contrast
     )
     extractor.model_post_init(None)
     mask: LayoutParser = LayoutParser(
@@ -147,12 +168,17 @@ def block_extractor(
         model_threshold=layout_model_threshold,
         table_model=table_model,
         table_model_threshold=table_model_threshold,
+        device_type=device
     )
     mask.model_post_init(None)
+    total_docs: int = len(file_list)
+    doc_number: int = 1
     for file in file_list:
+        print(f'{doc_number}//{total_docs} processed')
         file_path: str = input_folder + "/" + file
         layout = mask.get_layout(file_path, iou_max)
         extractor.get_blocks(file_path, layout, output_folder)
+        doc_number += 1
 
 def main():
     block_extractor()

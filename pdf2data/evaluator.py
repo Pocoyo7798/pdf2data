@@ -8,7 +8,7 @@ import os
 from bs4 import BeautifulSoup as bs
 from PIL import Image
 from pydantic import BaseModel
-from typing_extensions import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 class Evaluator(BaseModel):
     ref_folder: str
@@ -49,7 +49,7 @@ class Evaluator(BaseModel):
             ref_authors: List[str] = author_string.split(', ')
             file_path: str = self.result_folder + '/' + doc_name + '_metadata.json'
             with open(file_path, "r") as f:
-                metadata: Dict[str, Any] = json.load(f)
+                metadata: dict = json.load(f)
             title: str = metadata["title"][0]
             doi: str = metadata["doi"][0]
             authors: List[str] = metadata["authors"]
@@ -115,7 +115,7 @@ class Evaluator(BaseModel):
             result_file: str = file.replace("zones", "")
             result_path: str = self.result_folder + '/' + result_file
             with open(result_path, "r") as f:
-                zones: Dict[str, Any] = json.load(f)
+                zones: dict = json.load(f)
             j: int = 0
             index: int = -1
             tp_lines: int = 0
@@ -152,7 +152,7 @@ class Evaluator(BaseModel):
             full_text: str = ' '.join(full_text_list)
             similarity_value = SequenceMatcher(None, ref_full_text, full_text).ratio()
             all_similarities.append(similarity_value)
-        results: Dict[str, Any] = {}
+        results: dict = {}
         type_accuracy = total_correct_type / (total_correct_type + total_error_type)
         order_accuracy = total_correct_order / (total_correct_order + total_error_order)
         results['Entries'] = calc_metrics(total_tp_lines, total_fp_lines, total_fn_lines)
@@ -190,13 +190,12 @@ class Evaluator(BaseModel):
         correct_structure: int = 0
         total_tables: int = 0
         for file in doc_list:
-            print(file)
             file_path = self.ref_folder + '/' + file
             with open(file_path, "r") as f:
-                ref_blocks: Dict[str, Any] = json.load(f)
+                ref_blocks: dict = json.load(f)
             result_path: str = self.result_folder + '/' + file
             with open(result_path, "r") as f:
-                document_blocks: Dict[str, Any] = json.load(f)
+                document_blocks: dict = json.load(f)
             blocks: List[Any] = document_blocks["blocks"]
             table_boxes, table_legends, table_pages, table_structure, table_row_indexes, table_collumn_headers, figure_boxes, figure_legends, figure_pages = get_block_info(blocks)
             tp_table_boxes: int = 0
@@ -232,7 +231,6 @@ class Evaluator(BaseModel):
                     legend: str = figure_legends[index]
                 elif exists_figure is False:
                     fn_figure_boxes = fn_figure_boxes + 1
-                    print(ref_legend)
                 elif exists_table is True:
                     exist_block = True
                     tp_table_boxes = tp_table_boxes + 1
@@ -286,7 +284,7 @@ class Evaluator(BaseModel):
             total_tp_block_legends = total_tp_block_legends + tp_block_legends
             total_fp_block_legends = total_fp_block_legends + max(0, fp_block_legends)
             total_fn_block_legends = total_fn_block_legends + fn_block_legends
-        results: Dict[str , Any] = {}
+        results: dict = {}
         structure_accuracy: float = correct_structure / total_tables
         results['table_detection'] = calc_metrics(total_tp_table_boxes, total_fp_table_boxes, total_fn_table_boxes)
         results['figure_detection'] = calc_metrics(total_tp_figure_boxes, total_fp_figure_boxes, total_fn_figure_boxes)
