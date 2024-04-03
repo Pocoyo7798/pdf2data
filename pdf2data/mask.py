@@ -234,10 +234,10 @@ class LayoutParser(BaseModel):
         boxes = results["boxes"].tolist()
         if len(boxes) != 0:
             for value in boxes:
-                value[0] = value[0] / width * float(pdf_width)
-                value[1] = value[1] / height * float(pdf_height)
-                value[2] = value[2] / width * float(pdf_width)
-                value[3] = value[3] / height * float(pdf_height)
+                value[0] = value[0] / width * pdf_width
+                value[1] = value[1] / height * pdf_height
+                value[2] = value[2] / width * pdf_width
+                value[3] = value[3] / height * pdf_height
                 types.append("Table")
         table_scores = results["scores"].tolist()
         return {
@@ -250,15 +250,13 @@ class LayoutParser(BaseModel):
             "exist_figure": False,
         }
 
-    def get_layout(self, pdf_path: str, iou_max: float) -> Dict[str, Any]:
+    def get_layout(self, pdf_path: str) -> Dict[str, Any]:
         """Get the dictionary with the layout of a pdf file
 
         Parameters
         ----------
         pdf_path : str
             path to the file
-        iou_max : float
-            maximum iou to correct the table
 
         Returns
         -------
@@ -324,7 +322,7 @@ class LayoutParser(BaseModel):
                         pdf_width,
                         height,
                         pdf_height,
-                        self.model_threshold,
+                        self.table_model_threshold,
                     )
                 else:
                     sec_layout = LayoutParser.generate_layout_lp(
@@ -344,7 +342,7 @@ class LayoutParser(BaseModel):
                     j = 0
                     for table1 in table_boxes1:
                         area1: float = (table1[2] - table1[0]) * (table1[3] - table1[1])
-                        if area2 < area1 and iou_max > iou(table2, table1) > 0.5:
+                        if area2 < area1 and iou(table2, table1) > 0.5:
                             table_boxes1[j] = table2
                             table_scores1[j] = table_scores2[k]
                             table_types1[j] = table_types2[k]

@@ -47,24 +47,25 @@ def table_detector(input_folder: str, eval_file: str, model: str, model_threshol
         image_number += 1
         file_path: str = input_folder + "/" + image
         page: Any = cv2.imread(file_path)
+        height, width, channels = page.shape
         if mask.model == "microsoft/table-transformer-detection":
             layout: Dict[str, Any] = LayoutParser.generate_layout_hf(
                 mask._model,
                 page,
-                1,
-                1,
-                1,
-                1,
+                width,
+                width,
+                height,
+                height,
                 mask.model_threshold,
             )
         else:
             layout = LayoutParser.generate_layout_lp(
                 mask._model,
                 page,
-                1,
-                1,
-                1,
-                1,
+                width,
+                width,
+                height,
+                height,
             )
         results[image] = layout["table_boxes"]
     json_results: Any = json.dumps(results, indent=4)
