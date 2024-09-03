@@ -41,13 +41,17 @@ def text_finder(input_folder: str, output_folder: str, keywords_file: str, word_
     for doc in doc_list:
         print(doc)
         text_path: str = f"{input_folder}/{doc}/{doc}_text.json"
-        texts: Dict[str, Any] = finder.find(text_path, word_count_threshold, paragraph=find_paragraphs, section_header=find_section_headers, count_duplicates=count_duplicates)
+        results: Dict[str, Any] = finder.find(text_path, word_count_threshold, paragraph=find_paragraphs, section_header=find_section_headers, count_duplicates=count_duplicates)
+        text_list = results["text"]
         metadata_path:  str = f"{input_folder}/{doc}/{doc}_metadata.json"
         with open(metadata_path, "r") as f:
             doi = json.load(f)["doi"]
         results_path = f"{output_folder}/{doc}_found_texts.json"
-        with open(results_path, "w") as f:
-            f.write(texts_json)
+        with open(results_path, "a") as f:
+            f.write(doi + "\n")
+        for text in text_list:
+            with open(results_path, "w") as f:
+                f.write(text + "\n")
 
 def main():
     text_finder()
