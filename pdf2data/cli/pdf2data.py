@@ -228,6 +228,7 @@ def pdf2data(input_folder: str,
     doc_number: int = 1
     for file in file_list:
         print(f'{doc_number}//{total_docs} processed')
+        print(file)
         doc_number += 1
         file_name = os.path.splitext(file)[0]
         file_folder = output_folder + "/" + file_name

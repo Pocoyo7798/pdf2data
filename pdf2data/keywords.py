@@ -113,7 +113,7 @@ class TextFinder(BaseModel):
         Returns
         -------
         Dict[str, Any]
-            A dictionary with all the text blocks found and the respective word count
+            A dictionary with all the text blocks found
         """
         with open(text_file_path, "r") as f:
             text_dict: Dict[str, Any] = json.load(f)
@@ -126,7 +126,6 @@ class TextFinder(BaseModel):
         type_set: set = set(type_list)
         j = 0
         text_found: List[str] = []
-        word_count_list: List[int] = []
         for text in text_list:
             keywords_found: List[str] = []
             word_count = 0
@@ -145,19 +144,7 @@ class TextFinder(BaseModel):
             if word_count > word_count_threshold:
                 print(keywords_found)
                 text_found.append(text)
-                word_count_list.append(word_count)
             j += 1
-        if len(text_found) > 1:
-            sort_array = np.argsort(word_count_list)
-            final_counts: List[str] = []
-            final_texts: List[str] = []
-            for index in sort_array:
-                final_counts.insert(0,word_count_list[index])
-                final_texts.insert(0,text_found[index])
-        else:
-            final_counts: List[str] = word_count_list
-            final_texts: List[str] = text_found
-        return {"text": final_texts, "word_count": final_counts}
-
+        return {"text": text_found}
 
 

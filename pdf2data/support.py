@@ -420,7 +420,7 @@ def get_string_from_box(
     box_coords: List[float],
     page_size: List[float],
     x_corrector_value: float = 0.01,
-    y_corrector_value: float = 0.005,
+    y_corrector_value: float = 0.002,
 ) -> str:
     """retrieve the text inside a box
 
