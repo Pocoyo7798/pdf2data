@@ -262,6 +262,7 @@ class TableReconstructor(BaseModel):
 
 class Table(BaseModel):
     page: int
+    name: str
     block: List[List[str]]
     type: str = "Table"
     collumn_headers: List[int] = []
@@ -388,6 +389,14 @@ class Table(BaseModel):
                         self.block[i_horizontal][j_horizontal] = new_entry_horiz
                 j_horizontal = j_horizontal + 1
             i_vertical = i_vertical + 1
+        image_rect: fitz.Rect = fitz.Rect(
+            self.box[0], self.box[1], self.box[2], self.box[3]
+        )
+        mat: fitz.Matrix = fitz.Matrix(1, 1)
+        # Get Image from the Rectangle
+        image: Any = page.get_pixmap(matrix=mat, clip=image_rect)
+        # Save as Tiff
+        image.pil_save(self.name, format="TIFF")
         result = self.__dict__
         del result["letter_ratio"]
         return result
@@ -542,6 +551,7 @@ class BlockExtractor(BaseModel):
                 for i in range(len(page_boxes)):
                     if page_types[i] == "Table" and self.extract_tables is True:
                         table_number: int = table_number + 1
+                        table_name: str = f"Table{table_number}.tiff"
                         box: List[float] = page_boxes[i]
                         entries: Dict[str, List[Any]] = self._word_extractor.get_words(
                             pdf_size, page, box
@@ -575,7 +585,7 @@ class BlockExtractor(BaseModel):
                             raise AttributeError(
                                 "The reconstructor_type is not valid. Try 'entry_by_entry' or 'word_by_word'"
                             )
-                        table: Table = Table(
+                        table: Table = Table(name=table_name,
                             page=j + 1, block=block, number=table_number, box=box, letter_ratio=self.letter_ratio
                         )
                         block_dict: Dict[str, Any] = table.create_dict(
@@ -583,6 +593,10 @@ class BlockExtractor(BaseModel):
                         )
                         legends.append(table.legend)
                         block_list.append(block_dict)
+                        shutil.move(
+                            table_name,
+                            f"{output_folder}/{file_name}_images/" + table_name,
+                        )
                     elif page_types[i] == "Figure" and self.extract_figures is True:
                         box: List[float] = page_boxes[i]
                         image_number: int = image_number + 1

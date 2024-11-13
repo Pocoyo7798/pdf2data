@@ -64,11 +64,14 @@ class Metadata(BaseModel):
     def get_api(self) -> None:
         """Creata a class object from a .pdf file (file_path)"""
         # Run command to get pdf title using pdftitle
-        title_output: Any = subprocess.check_output(
-            ["pdftitle", "-p", self.file_path, "--replace-missing-char", '" "', "-t"],
-        )
-        # Transform the output into a string
-        title_string: str = title_output.decode("utf-8")
+        try:
+            title_output: Any = subprocess.check_output(
+                ["pdftitle", "-p", self.file_path, "--replace-missing-char", '" "', "-t"],
+            )
+            # Transform the output into a string
+            title_string: str = title_output.decode("utf-8")
+        except Exception:
+            title_string = ""
         # remove \n from string
         title: List[str] = [title_string.replace("\n", "")]
         doi: List[str] = ["Nothing Found"]
