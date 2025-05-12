@@ -17,6 +17,11 @@ from pdf2data.keywords import TextFinder
     help="file containing generic keywords",
 )
 @click.option(
+    "--document_type",
+    default="full_document",
+    help="Indicate if you want to analyse the full document folder or just the text file",
+)
+@click.option(
     "--find_paragraphs",
     default=True,
     help="True to look for paragraph type text, False otherwise.",
@@ -32,25 +37,32 @@ from pdf2data.keywords import TextFinder
     help="True to consider duplicates in the word count",
 )
 
-def text_finder(input_folder: str, output_folder: str, keywords_file: str, word_count_threshold: int, find_paragraphs: bool, find_section_headers:bool, count_duplicates:bool) -> None:
+def text_finder(input_folder: str, output_folder: str, keywords_file: str, word_count_threshold: int, document_type: str,find_paragraphs: bool, find_section_headers:bool, count_duplicates:bool) -> None:
     if os.path.isdir(output_folder) is False:
         os.mkdir(output_folder)
     finder: TextFinder = TextFinder(keywords_file_path=keywords_file)
     finder.model_post_init(None)
-    doc_list: List[str] = get_doc_list(input_folder, "")
+    if document_type == "full_document":
+        doc_list: List[str] = get_doc_list(input_folder, "")
+    else:
+        doc_list: List[str] = get_doc_list(input_folder, "json")
     for doc in doc_list:
         print(doc)
-        text_path: str = f"{input_folder}/{doc}/{doc}_text.json"
+        if document_type == "full_document":
+            text_path: str = f"{input_folder}/{doc}/{doc}_text.json"
+            metadata_path:  str = f"{input_folder}/{doc}/{doc}_metadata.json"
+            with open(metadata_path, "r") as f:
+                doi = json.load(f)["doi"]
+        else:
+            text_path: str = f"{input_folder}/{doc}"
+            doi = "No Information"
         results: Dict[str, Any] = finder.find(text_path, word_count_threshold, paragraph=find_paragraphs, section_header=find_section_headers, count_duplicates=count_duplicates)
         text_list = results["text"]
-        metadata_path:  str = f"{input_folder}/{doc}/{doc}_metadata.json"
-        with open(metadata_path, "r") as f:
-            doi = json.load(f)["doi"]
-        results_path = f"{output_folder}/{doc}_found_texts.json"
+        results_path = f"{output_folder}/{doc}_found_texts.txt"
         with open(results_path, "a") as f:
             f.write(doi + "\n")
         for text in text_list:
-            with open(results_path, "w") as f:
+            with open(results_path, "a") as f:
                 f.write(text + "\n")
 
 def main():

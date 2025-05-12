@@ -392,7 +392,7 @@ class Table(BaseModel):
         image_rect: fitz.Rect = fitz.Rect(
             self.box[0], self.box[1], self.box[2], self.box[3]
         )
-        mat: fitz.Matrix = fitz.Matrix(1, 1)
+        mat: fitz.Matrix = fitz.Matrix(3, 3)
         # Get Image from the Rectangle
         image: Any = page.get_pixmap(matrix=mat, clip=image_rect)
         # Save as Tiff
