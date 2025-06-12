@@ -18,6 +18,7 @@ class Metadata(BaseModel):
     keywords: Optional[List[str]] = None
     year: Optional[str] = None
     journal: Optional[str] = None
+    publisher: Optional[str] = None
 
     def get_cerm(self) -> None:
         """Updates a metadata class object from a .cermxml file
@@ -79,6 +80,7 @@ class Metadata(BaseModel):
         keywords: List[str] = ["Nothing Found"]
         year: List[str] = ["Nothing Found"]
         journal: List[str] = ["Nothing Found"]
+        publisher: List[str] = ["Nothing Found"]
         # Set the pdf2doi configurations
         pdf2doi.config.set("verbose", False)
         # Obtain a dictionary with possible identifiers
@@ -120,6 +122,8 @@ class Metadata(BaseModel):
                     year = [pdf_info_dic["year"]]
                 if "journal" in pdf_info_dic.keys():
                     journal = [pdf_info_dic["journal"]]
+                if "publisher" in pdf_info_dic.keys():
+                    publisher = [pdf_info_dic["publisher"]]
         except Exception:
             print(f"The follwing doi raise an error: {doi[0]}")
         metadata_values: set = set([title[0], doi[0], authors[0], year[0], journal[0]])
@@ -154,6 +158,7 @@ class Metadata(BaseModel):
         self.keywords = keywords
         self.year = year
         self.journal = journal
+        self.publisher = publisher
 
     def update(self):
         extension = os.path.splitext(self.file_path)[1]
