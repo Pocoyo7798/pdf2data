@@ -12,22 +12,23 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "Click<=8.1.7",
-    "numpy>=1.24.3",
-    "pydantic<2.0",
-    "beautifulsoup4>=4.12.3",
-    "pdf2doi>=1.5",
-    "bibcure>=0.3.0",
-    "importlib_resources>=6.1.1",
-    "lxml>=5.1.0",
-    "transformers>=4.29.2",
+    "numpy<=2.1.3",
+    "pydantic<=2.11.7",
+    "beautifulsoup4<=4.13.4",
+    "pdf2doi<=1.7",
+    "bibcure<=0.3.0",
+    "importlib_resources<=6.5.2",
+    "lxml<=6.0.0",
+    "transformers<=4.53.1",
     "layoutparser>=0.3.4",
-    "tensorflow>=2.13.1",
+    "tensorflowz=2.19.0",
     "layoutparser[layoutmodels]",
     "cython<=3.0.8",
     "effdet<=0.3.0",
     "pillow<=9.1.0",
-    "levenshtein<=0.24.0",
-    "trieregex<=1.0.0"
+    "levenshtein<=0.27.1",
+    "trieregex>=1.0.0",
+    "doclayout_yolo<=0.0.4"
 ]
 
 test_requirements = [

@@ -23,7 +23,7 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--table_model",
-    default="TableBank_faster_rcnn_R_101_FPN_3x",
+    default=None,
     help="model used to identify the tables",
 )
 @click.option(
@@ -183,6 +183,11 @@ def block_extractor(
 def main():
     block_extractor()
 
+"""@click.option(
+    "--table_model",
+    default="TableBank_faster_rcnn_R_101_FPN_3x",
+    help="model used to identify the tables",
+)"""
 
 if __name__ == "__main__":
     main()

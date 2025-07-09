@@ -764,7 +764,7 @@ def find_legend(
         while j >= max(0, index - block_distance) and verification is False:
             # Verify if the it is a text block and the is enough sobreposition
             if (
-                types[j] in ["Text", "Title"]
+                types[j] in ["Text", "Title", "Table Caption"]
                 and iou_horiz(boxes[index], boxes[j]) > iou_value
             ):
                 entry: str = get_string_from_box(page, boxes[j], page_size)
@@ -789,7 +789,7 @@ def find_legend(
         entries_list = []
         while j < len(boxes) - 1 and verification is False:
             if (
-                types[j] in ["Text", "Title"]
+                types[j] in ["Text", "Title",  "Table Caption"]
                 and iou_vert(boxes[index], boxes[j]) > iou_value
             ):
                 entry = get_string_from_box(page, boxes[j], page_size)
@@ -818,7 +818,7 @@ def find_legend(
         ):
             # print(types[j])
             if (
-                types[j] in ["Text", "Title"]
+                types[j] in ["Text", "Title", "Figure Caption"]
                 and iou_horiz(boxes[index], boxes[j]) > iou_value
             ):
                 entry = get_string_from_box(page, boxes[j], page_size)
@@ -834,7 +834,7 @@ def find_legend(
             elif types[j] in ["Table", "Figure"] and iou(boxes[index], boxes[j]) > 0.3:
                 print("Probably there is a duplicated Figure")
             elif (
-                types[j] in ["Table", "Figure"]
+                types[j] in ["Text", "Title", "Figure Caption"]
                 and iou_horiz(boxes[index], boxes[j]) > iou_value
             ):
                 break

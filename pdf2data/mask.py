@@ -11,6 +11,8 @@ from pdf2image import convert_from_path
 from PIL import Image, ImageDraw, ImageEnhance
 from pydantic import BaseModel, PrivateAttr
 from transformers import DetrImageProcessor, TableTransformerForObjectDetection
+from doclayout_yolo import YOLOv10
+from huggingface_hub import hf_hub_download
 
 from pdf2data.support import (block_organizer, box_corretor, iou,
                               order_horizontal, order_vertical, sobreposition)
@@ -23,7 +25,7 @@ class LayoutParser(BaseModel):
     table_model_threshold: float = 0.7
     model_path: Optional[str] = None
     table_model_path: Optional[str] = None
-    device_type: str = "gpu"
+    device_type: str = "cpu"
     _model: Any = PrivateAttr(default=None)
     _table_model: Any = PrivateAttr(default=None)
     _existing_models: List[str] = PrivateAttr(
@@ -35,9 +37,11 @@ class LayoutParser(BaseModel):
                 "TableBank_faster_rcnn_R_50_FPN_3x",
                 "TableBank_faster_rcnn_R_101_FPN_3x",
                 "microsoft/table-transformer-detection",
+                "DocLayout-YOLO-DocStructBench"
             ]
         )
     )
+    _labels: Any = PrivateAttr(default=None)
 
     def model_post_init(self, __context: Any) -> None:
         if self.model not in self._existing_models:
@@ -54,10 +58,14 @@ class LayoutParser(BaseModel):
         try:
             labels: Dict[int, str] = LAYOUT_PARSER_LABELS_REGISTRY[self.model]
             layout_parser: bool = True
+            self._labels = labels
         except KeyError:
             layout_parser: bool = False
         if layout_parser is False:
             self._model = TableTransformerForObjectDetection.from_pretrained(self.model)
+        elif self.model == "DocLayout-YOLO-DocStructBench":
+            filepath = hf_hub_download(repo_id="juliozhao/DocLayout-YOLO-DocStructBench", filename="doclayout_yolo_docstructbench_imgsz1024.pt")
+            self._model = YOLOv10(filepath)
         elif self.model_path is not None:
             self._model = lp.Detectron2LayoutModel(
                 f"{self.model_path}/config.yaml",
@@ -186,6 +194,97 @@ class LayoutParser(BaseModel):
         }
 
     @staticmethod
+    def generate_layout_doc_yolo(
+        model: Any,
+        page: Any,
+        width: float,
+        pdf_width: float,
+        height: float,
+        pdf_height: float,
+        threshold: str,
+        labels: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate a PDF layout from a page image using DocLayout-YOLO-DocStructBench model
+
+        Parameters
+        ----------
+        model : Any
+            model loaded to detect the layout
+        page : Any
+            page to be analyzed
+        width : float
+            width of the image
+        pdf_width : float
+            width of the pdf
+        height : float
+            height of the image
+        pdf_height : float
+            height of the pdf
+
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary containing the scores, boxes coordinates and types of each block found.
+        """
+        layout: List[Any] = model.predict(
+            page,   # Image to predict
+            imgsz=1024,        # Prediction image size
+            conf=threshold,                  # Confidence threshold    # Device to use (e.g., 'cuda:0' or 'cpu')
+            )[0].boxes.data
+        exist_figure: bool = False
+        boxes: List[List[float]] = []
+        scores: List[float] = []
+        types: List[str] = []
+        table_boxes: List[List[float]] = []
+        table_scores: List[float] = []
+        table_types: List[str] = []
+        for entry in layout:
+            # Retrieve the bounding box
+            x1: float = entry[0].item() / width * pdf_width
+            x2: float = entry[2].item() / width * pdf_width
+            y1: float = entry[1].item() / height * pdf_height
+            y2: float = entry[3].item() / height * pdf_height
+            entry_type = labels[int(entry[5].item())]
+            if entry_type in TEXT_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry[4].item())
+                types.append("Text")
+            elif entry_type in TITLE_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry[4].item())
+                types.append("Title")
+            elif entry_type in TABLE_WORDS_REGISTRY:
+                table_boxes.append([x1, y1, x2, y2])
+                table_scores.append(entry[4].item())
+                table_types.append("Table")
+            elif entry_type in FIGURE_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry[4].item())
+                types.append("Figure")
+                exist_figure = True
+            elif entry_type in FIGURE_CAPTIONS_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry[4].item())
+                types.append("Figure Caption")
+            elif entry_type in TABLE_CAPTIONS_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry[4].item())
+                types.append("Table Caption")
+            elif entry_type in TABLE_FOOTNOTE_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry[4].item())
+                types.append("Table Footnote")
+        return {
+            "boxes": boxes,
+            "scores": scores,
+            "types": types,
+            "table_boxes": table_boxes,
+            "table_scores": table_scores,
+            "table_type": table_types,
+            "exist_figure": exist_figure,
+        }
+
+    @staticmethod
     def generate_layout_hf(
         model: Any,
         page: Any,
@@ -297,6 +396,17 @@ class LayoutParser(BaseModel):
                     pdf_height,
                     self.model_threshold,
                 )
+            elif self.model == "DocLayout-YOLO-DocStructBench":
+                first_layout: Dict[str, Any] = LayoutParser.generate_layout_doc_yolo(
+                    self._model,
+                    page,
+                    width,
+                    pdf_width,
+                    height,
+                    pdf_height,
+                    self.model_threshold,
+                    self._labels
+                )
             else:
                 first_layout = LayoutParser.generate_layout_lp(
                     self._model,
@@ -323,6 +433,16 @@ class LayoutParser(BaseModel):
                         height,
                         pdf_height,
                         self.table_model_threshold,
+                    )
+                elif self.model == "DocLayout-YOLO-DocStructBench":
+                    first_layout: Dict[str, Any] = LayoutParser.generate_layout_doc_yolo(
+                        self._model,
+                        page,
+                        width,
+                        pdf_width,
+                        height,
+                        pdf_height,
+                        self.model_threshold,
                     )
                 else:
                     sec_layout = LayoutParser.generate_layout_lp(
@@ -605,6 +725,7 @@ LAYOUT_PARSER_LABELS_REGISTRY: Dict[str, Dict[int, str]] = {
     },
     "TableBank_faster_rcnn_R_50_FPN_3x": {0: "Table"},
     "TableBank_faster_rcnn_R_101_FPN_3x": {0: "Table"},
+    "DocLayout-YOLO-DocStructBench": {0: 'title', 1: 'plain text', 2: 'abandon', 3: 'figure', 4: 'figure_caption', 5: 'table', 6: 'table_caption', 7: 'table_footnote', 8: 'isolate_formula', 9: 'formula_caption'}
 }
 
 LAYOUT_PARSER_CONFIG_REGISTRY: Dict[str, str] = {
@@ -614,7 +735,10 @@ LAYOUT_PARSER_CONFIG_REGISTRY: Dict[str, str] = {
     "TableBank_faster_rcnn_R_50_FPN_3x": "lp://TableBank/faster_rcnn_R_50_FPN_3x/config",
     "TableBank_faster_rcnn_R_101_FPN_3x": "lp://TableBank/faster_rcnn_R_101_FPN_3x/config",
 }
-TABLE_WORDS_REGISTRY: set = set(["TableRegion", "Table"])
-FIGURE_WORDS_REGISTRY: set = set(["ImageRegion", "Figure"])
-TEXT_WORDS_REGISTRY: set = set(["TextRegion", "Text"])
-TITLE_WORDS_REGISTRY: set = set(["Title"])
+TABLE_WORDS_REGISTRY: set = set(["TableRegion", "Table", "table"])
+FIGURE_WORDS_REGISTRY: set = set(["ImageRegion", "Figure", "figure"])
+TEXT_WORDS_REGISTRY: set = set(["TextRegion", "Text", "plain text"])
+TITLE_WORDS_REGISTRY: set = set(["Title", "title"])
+FIGURE_CAPTIONS_WORDS_REGISTRY: set = set(["figure_caption"])
+TABLE_CAPTIONS_WORDS_REGISTRY: set = set(["table_caption"])
+TABLE_FOOTNOTE_WORDS_REGISTRY: set = set(["table_footnote"])
