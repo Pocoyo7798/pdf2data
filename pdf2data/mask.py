@@ -10,12 +10,13 @@ import torch
 from pdf2image import convert_from_path
 from PIL import Image, ImageDraw, ImageEnhance
 from pydantic import BaseModel, PrivateAttr
-from transformers import DetrImageProcessor, TableTransformerForObjectDetection
+from transformers import DetrImageProcessor, TableTransformerForObjectDetection, AutoModelForObjectDetection
 from doclayout_yolo import YOLOv10
 from huggingface_hub import hf_hub_download
+from torchvision import transforms
 
 from pdf2data.support import (block_organizer, box_corretor, iou,
-                              order_horizontal, order_vertical, sobreposition)
+                              order_horizontal, order_vertical, sobreposition, MaxResize, outputs_to_objects)
 
 
 class LayoutParser(BaseModel):
@@ -63,6 +64,8 @@ class LayoutParser(BaseModel):
             layout_parser: bool = False
         if layout_parser is False:
             self._model = TableTransformerForObjectDetection.from_pretrained(self.model)
+        elif self.model == "microsoft/table-transformer-detection":
+            self._model = AutoModelForObjectDetection.from_pretrained("microsoft/table-transformer-detection", revision="no_timm")
         elif self.model == "DocLayout-YOLO-DocStructBench":
             filepath = hf_hub_download(repo_id="juliozhao/DocLayout-YOLO-DocStructBench", filename="doclayout_yolo_docstructbench_imgsz1024.pt")
             self._model = YOLOv10(filepath)
@@ -349,6 +352,80 @@ class LayoutParser(BaseModel):
             "exist_figure": False,
         }
 
+    @staticmethod
+    def generate_layout_tatr(
+        model: Any,
+        page: Any,
+        width: float,
+        pdf_width: float,
+        height: float,
+        pdf_height: float,
+        threshold: str,
+        label: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate a PDF layout from a page image using microsoft TATR model
+
+        Parameters
+        ----------
+        model : Any
+            model loaded to detect the layout
+        page : Any
+            page to be analyzed
+        width : float
+            width of the image
+        pdf_width : float
+            width of the pdf
+        height : float
+            height of the image
+        pdf_height : float
+            height of the pdf
+        threshold : str
+            threshold value to not consider a positive detection
+
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary containing the scores, boxes coordinates and types of each block found.
+        """
+        table_boxes: List[List[float]] = []
+        table_scores: List[float] = []
+        table_types: List[str] = []
+        model.config.id2label
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        # Send the pixel values and pixel mask through the model
+        image = page.convert("RGB")
+        width, height = image.size
+        detection_transform = transforms.Compose([
+            MaxResize(800),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        pixel_values = detection_transform(image).unsqueeze(0)
+        pixel_values = pixel_values.to(device)
+        with torch.no_grad():
+            outputs = model(pixel_values)
+        objects = outputs_to_objects(outputs, image.size, label)
+        for object in objects:
+                x1: float = object["bbox"][0] / width * pdf_width
+                x2: float = object["bbox"][2] / width * pdf_width
+                y1: float = object["bbox"][1] / height * pdf_height
+                y2: float = object["bbox"][3] / height * pdf_height
+                entry_type = object["label"]
+                if entry_type in TABLE_WORDS_REGISTRY and object["score"] > threshold:
+                    table_boxes.append([x1, y1, x2, y2])
+                    table_scores.append(object["score"])
+                    table_types.append("Table")
+        return {
+            "boxes": [],
+            "scores": [],
+            "types": [],
+            "table_boxes": table_boxes,
+            "table_scores": table_scores,
+            "table_type": table_types,
+            "exist_figure": False,
+        }
+
     def get_layout(self, pdf_path: str) -> Dict[str, Any]:
         """Get the dictionary with the layout of a pdf file
 
@@ -386,7 +463,7 @@ class LayoutParser(BaseModel):
             width, height = page.size
             width = float(width)
             height = float(height)
-            if self.model == "microsoft/table-transformer-detection":
+            """if self.model == "microsoft/table-transformer-detection":
                 first_layout: Dict[str, Any] = LayoutParser.generate_layout_hf(
                     self._model,
                     page,
@@ -395,6 +472,18 @@ class LayoutParser(BaseModel):
                     height,
                     pdf_height,
                     self.model_threshold,
+                )"""
+            print(self.model)
+            if self.model == "microsoft/table-transformer-detection":
+                first_layout: Dict[str, Any] = LayoutParser.generate_layout_tatr(
+                    self._model,
+                    page,
+                    width,
+                    pdf_width,
+                    height,
+                    pdf_height,
+                    self.model_threshold,
+                    self._labels
                 )
             elif self.model == "DocLayout-YOLO-DocStructBench":
                 first_layout: Dict[str, Any] = LayoutParser.generate_layout_doc_yolo(
@@ -725,7 +814,8 @@ LAYOUT_PARSER_LABELS_REGISTRY: Dict[str, Dict[int, str]] = {
     },
     "TableBank_faster_rcnn_R_50_FPN_3x": {0: "Table"},
     "TableBank_faster_rcnn_R_101_FPN_3x": {0: "Table"},
-    "DocLayout-YOLO-DocStructBench": {0: 'title', 1: 'plain text', 2: 'abandon', 3: 'figure', 4: 'figure_caption', 5: 'table', 6: 'table_caption', 7: 'table_footnote', 8: 'isolate_formula', 9: 'formula_caption'}
+    "DocLayout-YOLO-DocStructBench": {0: 'title', 1: 'plain text', 2: 'abandon', 3: 'figure', 4: 'figure_caption', 5: 'table', 6: 'table_caption', 7: 'table_footnote', 8: 'isolate_formula', 9: 'formula_caption'},
+    "microsoft/table-transformer-detection": {0: 'table', 1: 'table rotated', 2: 'no object'}
 }
 
 LAYOUT_PARSER_CONFIG_REGISTRY: Dict[str, str] = {
@@ -735,7 +825,7 @@ LAYOUT_PARSER_CONFIG_REGISTRY: Dict[str, str] = {
     "TableBank_faster_rcnn_R_50_FPN_3x": "lp://TableBank/faster_rcnn_R_50_FPN_3x/config",
     "TableBank_faster_rcnn_R_101_FPN_3x": "lp://TableBank/faster_rcnn_R_101_FPN_3x/config",
 }
-TABLE_WORDS_REGISTRY: set = set(["TableRegion", "Table", "table"])
+TABLE_WORDS_REGISTRY: set = set(["TableRegion", "Table", "table", "table rotated"])
 FIGURE_WORDS_REGISTRY: set = set(["ImageRegion", "Figure", "figure"])
 TEXT_WORDS_REGISTRY: set = set(["TextRegion", "Text", "plain text"])
 TITLE_WORDS_REGISTRY: set = set(["Title", "title"])

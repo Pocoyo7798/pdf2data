@@ -3,6 +3,7 @@ from difflib import SequenceMatcher
 from io import BytesIO
 from typing import Any, Container, Dict, List
 from Levenshtein import ratio
+import torch
 
 import fitz
 import numpy as np
@@ -874,6 +875,18 @@ def find_legend(
             j = j + 1
     return legend
 
+class MaxResize(object):
+    "Class to resize images to aply TATR"
+    def __init__(self, max_size=800):
+        self.max_size = max_size
+
+    def __call__(self, image):
+        width, height = image.size
+        current_max_size = max(width, height)
+        scale = self.max_size / current_max_size
+        resized_image = image.resize((int(round(scale*width)), int(round(scale*height))))
+
+        return resized_image
 
 def calc_metrics(true_positives: int, false_positives: int, false_negatives: int) -> Dict[str, float]:
     """Calculate de precision, recall and f-score
@@ -1175,3 +1188,70 @@ def entries_similarity_vertical(ref_structure: List[List[str]], structure: List[
     ref_string = ref_string.replace(" ", "").lower()
     test_string = test_string.replace(" ", "").lower()
     return ratio(ref_string, test_string)
+
+def box_cxcywh_to_xyxy(box: Any) -> torch.Tensor:
+    """Convert box into xyxy format
+
+    Parameters
+    ----------
+    box : Any
+        box coordinates in cxcywh format
+    Returns
+    -------
+    torch.Tensor
+       Converted box
+    """
+    x_c, y_c, w, h = box.unbind(-1)
+    b = [(x_c - 0.5 * w), (y_c - 0.5 * h), (x_c + 0.5 * w), (y_c + 0.5 * h)]
+    return torch.stack(b, dim=1)
+
+def rescale_bboxes(out_bbox: Any, size: tuple) -> torch.Tensor:
+    """Rescale box to figure size
+
+    Parameters
+    ----------
+    out_bbox : Any
+        box coordinates in cxcywh format
+    size : tuple
+        image weight and height
+    Returns
+    -------
+    torch.Tensor
+       Rescaled box
+    """
+    img_w, img_h = size
+    b = box_cxcywh_to_xyxy(out_bbox)
+    b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
+    return b
+
+def outputs_to_objects(outputs: Any, img_size: tuple, labels: Dict[int, str]) -> List[Dict[str, Any]]:
+    """Transform TATR outputs in analysable blocks
+
+    Parameters
+    ----------
+    outputs : Any
+        box coordinates in cxcywh format
+    img_size : tuple
+        image weight and height
+    labels : tuple
+        image weight and height
+    Returns
+    -------
+    List[Dict[str, Any]]
+       List containing all object found
+    """
+    m = outputs.logits.softmax(-1).max(-1)
+    pred_labels = list(m.indices.detach().cpu().numpy())[0]
+    pred_scores = list(m.values.detach().cpu().numpy())[0]
+    pred_bboxes = outputs['pred_boxes'].detach().cpu()[0]
+    pred_bboxes = [elem.tolist() for elem in rescale_bboxes(pred_bboxes, img_size)]
+
+    objects = []
+
+    for label, score, bbox in zip(pred_labels, pred_scores, pred_bboxes):
+        class_label = labels[int(label)]
+        if not class_label == 'no object':
+            objects.append({'label': class_label, 'score': float(score),
+                            'bbox': [float(elem) for elem in bbox]})
+
+    return objects
