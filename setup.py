@@ -21,13 +21,13 @@ requirements = [
     "lxml<=6.0.0",
     "transformers<=4.53.1",
     "layoutparser>=0.3.4",
-    "tensorflowz=2.19.0",
+    "tensorflow<=2.19.0",
     "layoutparser[layoutmodels]",
     "cython<=3.0.8",
     "effdet<=0.3.0",
-    "pillow<=9.1.0",
+    "pillow>=9.1.0",
     "levenshtein<=0.27.1",
-    "trieregex>=1.0.0",
+    "trieregex<=1.0.0",
     "doclayout_yolo<=0.0.4"
 ]
 

@@ -107,38 +107,44 @@ class TableWords(BaseModel):
                 [x1_horizontal, y1_horizontal, x2_horizontal, y2_horizontal]
             )
             vertical_boxes.append([x1_vertical, y1_vertical, x2_vertical, y2_vertical])
-        probabilities_horizontal: List[float] = []
-        # Create the list of higher probability of being a line
-        for box in horizontal_boxes:
-            # This way smaller rectangles are more important
-            probabilities_horizontal.append(1 / (box[3] - box[1]))
-        probabilities_vertical: List[float] = []
-        # Create the list of higher probability of being a collumn
-        for box in vertical_boxes:
-            # This way smaller rectangles are more important
-            probabilities_vertical.append(1 / (box[2] - box[0]))
-        horiz_supressed_index: List[int] = tf.image.non_max_suppression(
-            horizontal_boxes,
-            probabilities_horizontal,
-            max_output_size=1000,
-            iou_threshold=self.iou_horizontal,
-            score_threshold=float("-inf"),
-            name=None,
-        )
-        vert_supressed_index: List[int] = tf.image.non_max_suppression(
-            vertical_boxes,
-            probabilities_vertical,
-            max_output_size=1000,
-            iou_threshold=self.iou_vertical,
-            score_threshold=float("-inf"),
-            name=None,
-        )
-        vertical_lines: List[List[float]] = []
-        horizontal_lines: List[List[float]] = []
-        for index in horiz_supressed_index:
-            horizontal_lines.append(horizontal_boxes[index])
-        for index in vert_supressed_index:
-            vertical_lines.append(vertical_boxes[index])
+        if len(horizontal_boxes) > 0:
+            probabilities_horizontal: List[float] = []
+            # Create the list of higher probability of being a line
+            for box in horizontal_boxes:
+                # This way smaller rectangles are more important
+                probabilities_horizontal.append(1 / (box[3] - box[1]))
+            horiz_supressed_index: List[int] = tf.image.non_max_suppression(
+                horizontal_boxes,
+                probabilities_horizontal,
+                max_output_size=1000,
+                iou_threshold=self.iou_horizontal,
+                score_threshold=float("-inf"),
+                name=None,
+            )
+            horizontal_lines: List[List[float]] = []
+            for index in horiz_supressed_index:
+                horizontal_lines.append(horizontal_boxes[index])
+        else:
+            horizontal_lines = horizontal_boxes
+        if len(vertical_boxes) > 0:
+            probabilities_vertical: List[float] = []
+            # Create the list of higher probability of being a collumn
+            for box in vertical_boxes:
+                # This way smaller rectangles are more important
+                probabilities_vertical.append(1 / (box[2] - box[0]))
+            vert_supressed_index: List[int] = tf.image.non_max_suppression(
+                vertical_boxes,
+                probabilities_vertical,
+                max_output_size=1000,
+                iou_threshold=self.iou_vertical,
+                score_threshold=float("-inf"),
+                name=None,
+            )
+            vertical_lines: List[List[float]] = []
+            for index in vert_supressed_index:
+                vertical_lines.append(vertical_boxes[index])
+        else:
+            vertical_lines = vertical_boxes
         # Order the index from down to bottom
         ordered_rows: List[List[float]] = order_horizontal(horizontal_lines)
         # Order the indexes from left to right
