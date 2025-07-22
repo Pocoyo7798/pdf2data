@@ -28,14 +28,6 @@ Installation
 --------
 
 ```bash
-conda create --name zs4procext python=3.10
-conda activate zs4procext
-git clone git@github.com:Pocoyo7798/zs4procext.git
-cd zs4procext
-pip install -e .
-```
-
-```bash
 conda create --name pdf2data python=3.10
 conda activate pdf2data
 git clone git@github.com:Pocoyo7798/pdf2data.git
@@ -43,10 +35,9 @@ cd zs4procext
 pip install -e .
 ```
 
-Credits
+Run the tool
 -------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+#Extract Tables and Figures
+```bash
+pdf2data_block path_to_folder path_to_results
+```
