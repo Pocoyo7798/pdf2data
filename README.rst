@@ -27,11 +27,14 @@ The repository is under transformation for a article publication some erros are 
 Installation
 --------
 
+
+```bash
 conda create --name pdf2data python=3.10
 conda activate pdf2data
 git clone git@github.com:Pocoyo7798/pdf2data.git
 cd zs4procext
 pip install -e .
+```
 
 Credits
 -------
