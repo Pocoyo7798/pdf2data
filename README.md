@@ -15,7 +15,7 @@ pip install -e .
 
 Run the tool
 -------
-#Extract Tables and Figures
+## Extract Tables and Figures
 ```bash
 pdf2data_block path_to_folder path_to_results
 ```
