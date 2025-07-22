@@ -27,6 +27,13 @@ The repository is under transformation for a article publication some erros are 
 Installation
 --------
 
+```bash
+conda create --name zs4procext python=3.10
+conda activate zs4procext
+git clone git@github.com:Pocoyo7798/zs4procext.git
+cd zs4procext
+pip install -e .
+```
 
 ```bash
 conda create --name pdf2data python=3.10
