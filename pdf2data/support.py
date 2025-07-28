@@ -1,10 +1,12 @@
 import os
 from difflib import SequenceMatcher
 from io import BytesIO
-from typing import Any, Container, Dict, List
+from typing import Any, Container, Dict, List, Optional
 from Levenshtein import ratio
 import torch
+import re
 
+from pydantic import BaseModel, PrivateAttr
 import fitz
 import numpy as np
 from bs4 import BeautifulSoup as bs
@@ -12,7 +14,63 @@ from pdfminer.converter import HTMLConverter, TextConverter, XMLConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
+from trieregex import TrieRegEx as TRE
 
+class Latex2Table(BaseModel):
+    _table_regex: Optional[re.Pattern] = PrivateAttr(default=None)
+    _replace_regex: Optional[re.Pattern] = PrivateAttr(default=None)
+    _multi_column_regex: Optional[re.Pattern] = PrivateAttr(default=None)
+    _multi_row_regex: Optional[re.Pattern] = PrivateAttr(default=None)
+
+    def model_post_init(self, __context: Any) -> None:
+        table_regex: str = r"\\begin\{tabularx?\}\{[^}]*\}(.+)\\end\{tabularx?\}"
+        self._table_regex = re.compile(table_regex, re.IGNORECASE | re.MULTILINE)
+        tre_regex = correct_tre(REPLACE_REGEX_REGISTRY)
+        self._replace_regex = re.compile(r"\\cline\{[\d-]+\}|\\cmidrule\([\w+\)\{[\d-]+\}|\\footnote\{[^}]+\}|"+f"{tre_regex}", re.IGNORECASE | re.MULTILINE)
+        multi_column_regex = r"\\multicolumn\{(\d+)\}\{([^}]*)\}\{(.+)\}"
+        self._multi_column_regex = re.compile(multi_column_regex, re.IGNORECASE | re.MULTILINE)
+        multi_row_regex = r"\\multirow\{(\d+)\}\{([^}]*)\}\{(.+)\}"
+        self._multi_row_regex = re.compile(multi_row_regex, re.IGNORECASE | re.MULTILINE)
+    
+    def extract_entries(self, entries_list: List[str]):
+        line_list = []
+        for entry in entries_list:
+            amount = 1
+            multicolumn_list = self._multi_column_regex.findall(entry)
+            if len(multicolumn_list) > 0:
+                amount = int(multicolumn_list[0][0])
+                entry = multicolumn_list[0][2]
+            multirow_list = self._multi_row_regex.findall(entry)
+            if len(multirow_list) > 0:
+                entry = multirow_list[0][2]
+            print(entry)
+            entry = entry.replace("$\\mu$", "u")
+            entry = self._replace_regex.sub("", entry)
+            entry = entry.replace("^circ", "°")
+            print(entry)
+            for i in range(0, amount):
+                line_list.append(entry.strip())
+        return line_list
+
+    def extract_latex_table(self, string: str):
+        table_result = self._table_regex.findall(string)
+        if len(table_result) > 0:
+            table: str = str(table_result[0])
+        else:
+            table = ""
+        table_lines = table.split('\\\\')
+        final_table = []
+        hline_list = []
+        for line in table_lines[:-1]:
+            if "hline" in line:
+                hline_list.append(1)
+            else:
+                hline_list.append(0)
+            entries_list = line.split("&")
+            table_line_final = self.extract_entries(entries_list)
+            final_table.append(table_line_final)
+        print(final_table)
+        print(hline_list)
 
 def find_term_in_list(reference: List[str], term: str) -> List[str]:
     """_summary_
@@ -1255,3 +1313,18 @@ def outputs_to_objects(outputs: Any, img_size: tuple, labels: Dict[int, str]) ->
                             'bbox': [float(elem) for elem in bbox]})
 
     return objects
+
+def correct_tre(word_list: List["str"]) -> re.Pattern[str]:
+    tre: TRE = TRE(*word_list)
+    regex = tre.regex()
+    i = 0
+    while len(regex) < 1:
+        tre = TRE(*[""])
+        tre = TRE(*word_list)
+        regex = tre.regex()
+        if i > 100:
+            raise TimeoutError("It was not possible to achieve the correct regex in the maximum amount of interations")
+        i += 1
+    return regex
+
+REPLACE_REGEX_REGISTRY = ["\\hline", "\\mathrm{", "\\mathrm{ ","\\textbf{", "text{", "mathrm{", "textit{", "$\\", "$\\", "^{", "$^{", "${", "$_", "$^", "\\bf", "$~", "_{", "$", "}", "\\"]

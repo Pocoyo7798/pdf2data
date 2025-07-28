@@ -473,7 +473,6 @@ class LayoutParser(BaseModel):
                     pdf_height,
                     self.model_threshold,
                 )"""
-            print(self.model)
             if self.model == "microsoft/table-transformer-detection":
                 first_layout: Dict[str, Any] = LayoutParser.generate_layout_tatr(
                     self._model,
