@@ -13,7 +13,7 @@ from pdf2data.support import get_doc_list
 @click.argument("output_folder", type=str)
 @click.option(
     "--layout_model",
-    default="PubLayNet_mask_rcnn_X_101_32x8d_FPN_3x",
+    default="DocLayout-YOLO-DocStructBench",
     help="model used to determine the overall layout",
 )
 @click.option(

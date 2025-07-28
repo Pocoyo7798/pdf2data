@@ -43,6 +43,7 @@ class LayoutParser(BaseModel):
         )
     )
     _labels: Any = PrivateAttr(default=None)
+    _table_labels: Any = PrivateAttr(default=None)
 
     def model_post_init(self, __context: Any) -> None:
         if self.model not in self._existing_models:
@@ -58,13 +59,10 @@ class LayoutParser(BaseModel):
             )
         try:
             labels: Dict[int, str] = LAYOUT_PARSER_LABELS_REGISTRY[self.model]
-            layout_parser: bool = True
             self._labels = labels
         except KeyError:
-            layout_parser: bool = False
-        if layout_parser is False:
-            self._model = TableTransformerForObjectDetection.from_pretrained(self.model)
-        elif self.model == "microsoft/table-transformer-detection":
+            raise AttributeError("Did not found the labels for the Layout Model")
+        if self.model == "microsoft/table-transformer-detection":
             self._model = AutoModelForObjectDetection.from_pretrained("microsoft/table-transformer-detection", revision="no_timm")
         elif self.model == "DocLayout-YOLO-DocStructBench":
             filepath = hf_hub_download(repo_id="juliozhao/DocLayout-YOLO-DocStructBench", filename="doclayout_yolo_docstructbench_imgsz1024.pt")
@@ -94,13 +92,14 @@ class LayoutParser(BaseModel):
         if self.table_model is not None:
             try:
                 labels: Dict[int, str] = LAYOUT_PARSER_LABELS_REGISTRY[self.table_model]
-                layout_parser: bool = True
+                self._table_labels = labels
             except KeyError:
-                layout_parser: bool = False
-            if layout_parser is False:
-                self._table_model = TableTransformerForObjectDetection.from_pretrained(
-                    self.table_model
-                )
+                raise AttributeError("Did not found the labels for the Table Model")
+            if self.table_model == "microsoft/table-transformer-detection":
+                self._table_model = AutoModelForObjectDetection.from_pretrained("microsoft/table-transformer-detection", revision="no_timm")
+            elif self.table_model == "DocLayout-YOLO-DocStructBench":
+                filepath = hf_hub_download(repo_id="juliozhao/DocLayout-YOLO-DocStructBench", filename="doclayout_yolo_docstructbench_imgsz1024.pt")
+                self._table_model = YOLOv10(filepath)
             elif self.table_model_path is not None:
                 self._model = lp.Detectron2LayoutModel(
                     f"{self.table_model_path}/config.yaml",
@@ -507,13 +506,13 @@ class LayoutParser(BaseModel):
             boxes: List[List[float]] = first_layout["boxes"]
             scores: List[float] = first_layout["scores"]
             types: List[str] = first_layout["types"]
-            table_boxes2: List[List[float]] = first_layout["table_boxes"]
-            table_scores2: List[float] = first_layout["table_scores"]
-            table_types2: List[str] = first_layout["table_type"]
+            table_boxes1: List[List[float]] = first_layout["table_boxes"]
+            table_scores1: List[float] = first_layout["table_scores"]
+            table_types1: List[str] = first_layout["table_type"]
             exist_figures: bool = first_layout["exist_figure"]
             if self.table_model is not None:
                 if self.table_model == "microsoft/table-transformer-detection":
-                    sec_layout: Dict[str, Any] = LayoutParser.generate_layout_hf(
+                    sec_layout: Dict[str, Any] = LayoutParser.generate_layout_tatr(
                         self._table_model,
                         page,
                         width,
@@ -521,16 +520,18 @@ class LayoutParser(BaseModel):
                         height,
                         pdf_height,
                         self.table_model_threshold,
+                        self._table_labels
                     )
-                elif self.model == "DocLayout-YOLO-DocStructBench":
-                    first_layout: Dict[str, Any] = LayoutParser.generate_layout_doc_yolo(
-                        self._model,
+                elif self.table_model == "DocLayout-YOLO-DocStructBench":
+                    sec_layout: Dict[str, Any] = LayoutParser.generate_layout_doc_yolo(
+                        self._table_model,
                         page,
                         width,
                         pdf_width,
                         height,
                         pdf_height,
-                        self.model_threshold,
+                        self.table_model_threshold,
+                        self._labels
                     )
                 else:
                     sec_layout = LayoutParser.generate_layout_lp(
@@ -541,25 +542,29 @@ class LayoutParser(BaseModel):
                         height,
                         pdf_height,
                     )
-                table_boxes1: List[List[float]] = sec_layout["table_boxes"]
-                table_scores1: List[float] = sec_layout["table_scores"]
-                table_types1: List[str] = sec_layout["table_type"]
+                table_boxes2: List[List[float]] = sec_layout["table_boxes"]
+                table_scores2: List[float] = sec_layout["table_scores"]
+                table_types2: List[str] = sec_layout["table_type"]
                 k = 0
                 for table2 in table_boxes2:
                     area2: float = (table2[2] - table2[0]) * (table2[3] - table2[1])
+                    max_iou = 0
                     j = 0
                     for table1 in table_boxes1:
                         area1: float = (table1[2] - table1[0]) * (table1[3] - table1[1])
+                        if iou(table2, table1) > max_iou:
+                            max_iou = iou(table2, table1)
                         if area2 < area1 and iou(table2, table1) > 0.5:
                             table_boxes1[j] = table2
                             table_scores1[j] = table_scores2[k]
                             table_types1[j] = table_types2[k]
+                            break
                         j = j + 1
+                    if max_iou < 0.1:
+                        table_boxes1.append(table2)
+                        table_scores1.append(table_scores2[k])
+                        table_types1.append(table_types2[k])
                     k = k + 1
-            else:
-                table_boxes1 = table_boxes2
-                table_scores1 = table_scores2
-                table_types1 = table_types2
             boxes = boxes + table_boxes1
             scores = scores + table_scores1
             types = types + table_types1

@@ -17,7 +17,7 @@ from pdf2data.metadata import Metadata
 @click.argument("output_folder", type=str)
 @click.option(
     "--layout_model",
-    default="PubLayNet_mask_rcnn_X_101_32x8d_FPN_3x",
+    default="DocLayout-YOLO-DocStructBench",
     help="model used to determine the overall layout",
 )
 @click.option(
@@ -27,7 +27,7 @@ from pdf2data.metadata import Metadata
 )
 @click.option(
     "--table_model",
-    default="TableBank_faster_rcnn_R_101_FPN_3x",
+    default=None,
     help="model used to identify the tables",
 )
 @click.option(

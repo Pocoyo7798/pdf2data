@@ -107,17 +107,12 @@ class TableWords(BaseModel):
                 [x1_horizontal, y1_horizontal, x2_horizontal, y2_horizontal]
             )
             vertical_boxes.append([x1_vertical, y1_vertical, x2_vertical, y2_vertical])
-        probabilities_horizontal: List[float] = []
-        # Create the list of higher probability of being a line
-        for box in horizontal_boxes:
-            # This way smaller rectangles are more important
-            probabilities_horizontal.append(1 / (box[3] - box[1]))
-        probabilities_vertical: List[float] = []
-        # Create the list of higher probability of being a collumn
-        for box in vertical_boxes:
-            # This way smaller rectangles are more important
-            probabilities_vertical.append(1 / (box[2] - box[0]))
         if len(horizontal_boxes) > 0:
+            probabilities_horizontal: List[float] = []
+            # Create the list of higher probability of being a line
+            for box in horizontal_boxes:
+                # This way smaller rectangles are more important
+                probabilities_horizontal.append(1 / (box[3] - box[1]))
             horiz_supressed_index: List[int] = tf.image.non_max_suppression(
                 horizontal_boxes,
                 probabilities_horizontal,
@@ -132,6 +127,11 @@ class TableWords(BaseModel):
         else:
             horizontal_lines = horizontal_boxes
         if len(vertical_boxes) > 0:
+            probabilities_vertical: List[float] = []
+            # Create the list of higher probability of being a collumn
+            for box in vertical_boxes:
+                # This way smaller rectangles are more important
+                probabilities_vertical.append(1 / (box[2] - box[0]))
             vert_supressed_index: List[int] = tf.image.non_max_suppression(
                 vertical_boxes,
                 probabilities_vertical,
@@ -144,7 +144,7 @@ class TableWords(BaseModel):
             for index in vert_supressed_index:
                 vertical_lines.append(vertical_boxes[index])
         else:
-            vertical_lines =  vertical_boxes
+            vertical_lines = vertical_boxes
         # Order the index from down to bottom
         ordered_rows: List[List[float]] = order_horizontal(horizontal_lines)
         # Order the indexes from left to right
@@ -453,7 +453,7 @@ class Figure(BaseModel):
         image_rect: fitz.Rect = fitz.Rect(
             self.box[0], self.box[1], self.box[2], self.box[3]
         )
-        mat: fitz.Matrix = fitz.Matrix(zoom, zoom)
+        mat: fitz.Matrix = fitz.Matrix(3, 3)
         # Get Image from the Rectangle
         image: Any = page.get_pixmap(matrix=mat, clip=image_rect)
         # Save as Tiff

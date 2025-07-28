@@ -20,15 +20,15 @@ requirements = [
     "importlib_resources<=6.5.2",
     "lxml<=6.0.0",
     "transformers<=4.53.1",
-    "layoutparser>=0.3.4",
-    "tensorflowz=2.19.0",
-    "layoutparser[layoutmodels]",
+    "tensorflow<=2.19.0",
     "cython<=3.0.8",
     "effdet<=0.3.0",
-    "pillow<=9.1.0",
+    "pillow>=11.3.0",
     "levenshtein<=0.27.1",
-    "trieregex>=1.0.0",
-    "doclayout_yolo<=0.0.4"
+    "trieregex<=1.0.0",
+    "doclayout_yolo<=0.0.4",
+    "lmdeploy<=0.9.1",
+    "struct_eqtable<=0.3.3"
 ]
 
 test_requirements = [
