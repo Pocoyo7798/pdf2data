@@ -10,10 +10,10 @@ import PyPDF2
 import tensorflow as tf
 from pydantic import BaseModel, PrivateAttr
 
-from pdf2data.mask import TableStructureParser
+from pdf2data.mask import TableStructureParser, Table2Latex
 from pdf2data.support import (box_corretor, find_legend, iou, order_horizontal,
                               order_vertical, word_horiz_box_corrector,
-                              words_from_line)
+                              words_from_line, Latex2Table)
 
 
 class TableWords(BaseModel):
@@ -355,7 +355,7 @@ class Table(BaseModel):
         page : Any
             pdf page to be considered
         page_size : List[float]
-            size of the oage
+            size of the page
         boxes : List[List[float]]
             list of boxes of the page layout
         types : List[str]
@@ -370,6 +370,7 @@ class Table(BaseModel):
         """
         i_vertical: int = 1
         # Go through all entries in the table
+        print(self.block)
         self.find_collumn_headers()
         self.find_row_indexes()
         self.legend = find_legend(
@@ -482,22 +483,70 @@ class BlockExtractor(BaseModel):
     _structure_parser: Optional[TableStructureParser] = PrivateAttr(default=None)
     _word_extractor: Optional[TableWords] = PrivateAttr(default=None)
     _reconstructor: TableReconstructor = PrivateAttr(default=None)
+    _table2latex_model: Table2Latex = PrivateAttr(default=None)
+    _latex_parser: Latex2Table = PrivateAttr(default=None)
 
     def model_post_init(self, __context: Any) -> None:
-        self._reconstructor = TableReconstructor(iou_threshold=self.word_iou)
-        self._structure_parser = TableStructureParser(
-            model=self.structure_model,
-            model_threshold=self.struct_model_threshold,
-            x_corrector_value=self.x_table_corr,
-            y_corrector_value=self.y_table_corr,
-            zoom=self.table_zoom,
-            iou_lines=self.iou_lines,
-            iou_struct=self.iou_struct,
-            brightness=self.brightness,
-            contrast = self.contrast
-        )
-        self._word_extractor = TableWords(word_proximity_factor=self.word_factor)
-        self._structure_parser.model_post_init(None)
+        if self.structure_model == "microsoft/table-transformer-structure-recognition":
+            self._reconstructor = TableReconstructor(iou_threshold=self.word_iou)
+            self._structure_parser = TableStructureParser(
+                model=self.structure_model,
+                model_threshold=self.struct_model_threshold,
+                x_corrector_value=self.x_table_corr,
+                y_corrector_value=self.y_table_corr,
+                zoom=self.table_zoom,
+                iou_lines=self.iou_lines,
+                iou_struct=self.iou_struct,
+                brightness=self.brightness,
+                contrast = self.contrast
+            )
+            self._word_extractor = TableWords(word_proximity_factor=self.word_factor)
+        elif self.structure_model == "U4R/StructTable-InternVL2-1B":
+            self._table2latex_model = Table2Latex(model_name=self.structure_model,
+                x_corrector_value=self.x_table_corr,
+                y_corrector_value=self.y_table_corr,
+                zoom=self.table_zoom,)
+            self._latex_parser = Latex2Table()
+
+    def generate_block_microsoft(self, document, j, initial_box, corrected_box, pdf_size, page):
+        entries: Dict[str, List[Any]] = self._word_extractor.get_words(
+                            pdf_size, page, initial_box
+                        )
+        if self.correct_struct is True:
+            word_structure: Dict[str, List[List[float]]] = self._word_extractor.table_struture_with_boxes(
+                                entries["boxes"], entries["table_box"]
+                            )
+            table_structure: Dict[
+                str, List[List[float]]
+                ] = self._structure_parser.get_table_structure(
+                document, j, initial_box, corrected_box, word_boxes=word_structure
+                )
+        else:
+            table_structure = (
+                self._structure_parser.get_table_structure(
+                document, j, initial_box, corrected_box
+                ))
+        if self.reconstructor_type == "entry_by_entry":
+            block: List[List[str]] = self._reconstructor.entry_by_entry(
+            entries, table_structure
+            )
+        elif self.reconstructor_type == "word_by_word":
+            block = self._reconstructor.word_by_word(
+            entries, table_structure
+            )
+        else:
+            raise AttributeError(
+                "The reconstructor_type is not valid. Try 'entry_by_entry' or 'word_by_word'"
+            )
+        return block
+
+    def generate_block_llm(self, 
+        pdf: Any,
+        page_index: int,
+        table_coords: List[List[float]]):
+        table = self._table2latex_model.generate_latex(pdf, page_index, table_coords)
+        block = self._latex_parser.extract_latex_table(table)
+        return block
 
     def get_blocks(
         self, file_path: str, layout: Dict[str, Any], output_folder: str, doi: str = ""
@@ -558,41 +607,20 @@ class BlockExtractor(BaseModel):
                     if page_types[i] == "Table" and self.extract_tables is True:
                         table_number: int = table_number + 1
                         table_name: str = f"Table{table_number}.tiff"
-                        box: List[float] = page_boxes[i]
-                        entries: Dict[str, List[Any]] = self._word_extractor.get_words(
-                            pdf_size, page, box
+                        initial_box: List[float] = page_boxes[i]
+                        x_1, y_1, x_2, y_2 = box_corretor(
+                            pdf_size,
+                            initial_box,
+                            x_corrector=self.x_table_corr,
+                            y_corrector=self.y_table_corr,
                         )
-                        if self.correct_struct is True:
-                            word_structure: Dict[
-                                str, List[List[float]]
-                            ] = self._word_extractor.table_struture_with_boxes(
-                                entries["boxes"], entries["table_box"]
-                            )
-                            table_structure: Dict[
-                                str, List[List[float]]
-                            ] = self._structure_parser.get_table_structure(
-                                document, j, page_boxes[i], word_boxes=word_structure
-                            )
-                        else:
-                            table_structure = (
-                                self._structure_parser.get_table_structure(
-                                    document, j, box
-                                )
-                            )
-                        if self.reconstructor_type == "entry_by_entry":
-                            block: List[List[str]] = self._reconstructor.entry_by_entry(
-                                entries, table_structure
-                            )
-                        elif self.reconstructor_type == "word_by_word":
-                            block = self._reconstructor.word_by_word(
-                                entries, table_structure
-                            )
-                        else:
-                            raise AttributeError(
-                                "The reconstructor_type is not valid. Try 'entry_by_entry' or 'word_by_word'"
-                            )
+                        corrected_box: List[float] = [x_1, y_1, x_2, y_2]
+                        if self.structure_model == "microsoft/table-transformer-structure-recognition":
+                            block = self.generate_block_microsoft(document, j, initial_box, corrected_box, pdf_size, page)
+                        elif self.structure_model == "U4R/StructTable-InternVL2-1B":
+                            block = self.generate_block_llm(document, j, corrected_box)
                         table: Table = Table(name=table_name,
-                            page=j + 1, block=block, number=table_number, box=box, letter_ratio=self.letter_ratio
+                            page=j + 1, block=block, number=table_number, box=corrected_box, letter_ratio=self.letter_ratio
                         )
                         block_dict: Dict[str, Any] = table.create_dict(
                             page, pdf_size, page_boxes, page_types, i

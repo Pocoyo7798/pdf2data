@@ -17,14 +17,11 @@ from pdfminer.pdfpage import PDFPage
 from trieregex import TrieRegEx as TRE
 
 class Latex2Table(BaseModel):
-    _table_regex: Optional[re.Pattern] = PrivateAttr(default=None)
     _replace_regex: Optional[re.Pattern] = PrivateAttr(default=None)
     _multi_column_regex: Optional[re.Pattern] = PrivateAttr(default=None)
     _multi_row_regex: Optional[re.Pattern] = PrivateAttr(default=None)
 
     def model_post_init(self, __context: Any) -> None:
-        table_regex: str = r"\\begin\{tabularx?\}\{[^}]*\}(.+)\\end\{tabularx?\}"
-        self._table_regex = re.compile(table_regex, re.IGNORECASE | re.MULTILINE)
         tre_regex = correct_tre(REPLACE_REGEX_REGISTRY)
         self._replace_regex = re.compile(r"\\cline\{[\d-]+\}|\\cmidrule\([\w+\)\{[\d-]+\}|\\footnote\{[^}]+\}|"+f"{tre_regex}", re.IGNORECASE | re.MULTILINE)
         multi_column_regex = r"\\multicolumn\{(\d+)\}\{([^}]*)\}\{(.+)\}"
@@ -34,6 +31,7 @@ class Latex2Table(BaseModel):
     
     def extract_entries(self, entries_list: List[str]):
         line_list = []
+        multi_column_list = []
         for entry in entries_list:
             amount = 1
             multicolumn_list = self._multi_column_regex.findall(entry)
@@ -43,23 +41,96 @@ class Latex2Table(BaseModel):
             multirow_list = self._multi_row_regex.findall(entry)
             if len(multirow_list) > 0:
                 entry = multirow_list[0][2]
-            print(entry)
             entry = entry.replace("$\\mu$", "u")
+            entry = entry.replace("\\times", "x")
             entry = self._replace_regex.sub("", entry)
             entry = entry.replace("^circ", "°")
-            print(entry)
             for i in range(0, amount):
                 line_list.append(entry.strip())
-        return line_list
+                multi_column_list.append(amount)
+        return line_list, multi_column_list
+    
+    def define_table_error_type(self, line_size_list, multi_column_matrix, min_line_size, max_line_size):
+        test = "add_entry"
+        if min_line_size == max_line_size:
+            return None
+        k = 0
+        for line_amount in line_size_list:
+            if line_amount == max_line_size and sum(multi_column_matrix[k]) > line_amount:
+                test = "remove_entry"
+                break
+        return test
+    
+    def line_is_empty(self, line):
+        test = True
+        for entry in line:
+            if entry != "":
+                test = False
+                break
+        return test
+    
+    def correct_line_by_removing(self, line, multi_column_line, amount_to_remove):
+        removed = 0
+        while removed < amount_to_remove:
+            j = 0
+            remove_test = False
+            for value in multi_column_line:
+                if value > 1:
+                    del line[j]
+                    remove_test = True
+                    removed += 1
+                    break
+            if not remove_test:
+                del line[-1]
+                removed += 1
+        return line
+    
+    def correct_line_by_adding(self, line: List[str], amount_to_add):
+        added = 0
+        while added < amount_to_add:
+            line.append("")
+            added += 1
+        return line
+    
+    def correct_table(self, table, multi_column_matrix):
+        min_line_size = 9999
+        max_line_size = 0
+        i = 0
+        line_size_list = []
+        for line in table:
+            if len(line) == 1:
+                pass
+            elif len(line) < min_line_size:
+                min_line_size = len(line)
+            if len(line) > max_line_size:
+                max_line_size = len(line)
+            line_size_list.append(len(table[i]))
+            i += 1
+        error_type = self.define_table_error_type(line_size_list, multi_column_matrix, min_line_size, max_line_size)
+        i = 0
+        for line in table:
+            print(line)
+            if len(line) == 1:
+                line = line * min_line_size
+                multi_column_matrix[i] = multi_column_matrix[i] * min_line_size
+                table[i] = line
+            if error_type is None:
+                pass
+            elif error_type == "remove_entry":
+                amount_to_remove = max(0, len(line) - min_line_size)
+                new_line = self.correct_line_by_removing(line, multi_column_matrix[i], amount_to_remove)
+                table[i] = new_line
+            else:
+                amount_to_add = max(0, max_line_size - len(line))
+                new_line = self.correct_line_by_adding(line, amount_to_add)
+                table[i] = new_line
+            i += 1
+        return table
 
-    def extract_latex_table(self, string: str):
-        table_result = self._table_regex.findall(string)
-        if len(table_result) > 0:
-            table: str = str(table_result[0])
-        else:
-            table = ""
+    def extract_latex_table(self, table: str):
         table_lines = table.split('\\\\')
         final_table = []
+        multicolumn_matrix = []
         hline_list = []
         for line in table_lines[:-1]:
             if "hline" in line:
@@ -67,10 +138,11 @@ class Latex2Table(BaseModel):
             else:
                 hline_list.append(0)
             entries_list = line.split("&")
-            table_line_final = self.extract_entries(entries_list)
-            final_table.append(table_line_final)
-        print(final_table)
-        print(hline_list)
+            table_line_final, multicolumn_list = self.extract_entries(entries_list)
+            if not self.line_is_empty(table_line_final):
+                final_table.append(table_line_final)
+                multicolumn_matrix.append(multicolumn_list)
+        return self.correct_table(final_table, multicolumn_matrix)
 
 def find_term_in_list(reference: List[str], term: str) -> List[str]:
     """_summary_
@@ -1327,4 +1399,4 @@ def correct_tre(word_list: List["str"]) -> re.Pattern[str]:
         i += 1
     return regex
 
-REPLACE_REGEX_REGISTRY = ["\\hline", "\\mathrm{", "\\mathrm{ ","\\textbf{", "text{", "mathrm{", "textit{", "$\\", "$\\", "^{", "$^{", "${", "$_", "$^", "\\bf", "$~", "_{", "$", "}", "\\"]
+REPLACE_REGEX_REGISTRY = ["\\hline", "{\mathrm ", "\\mathrm{ ", "\\mathrm{", "\\mathrm ", "\\mathrm", "\\textbf{", "text{", "mathrm{", "textit{", "$\\", "$\\", "^{", "$^{", "${ ", "${", "$_", "$^", "\\bf", "$~", "_{", "$", "}", "\\"]

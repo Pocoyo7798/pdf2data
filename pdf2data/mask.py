@@ -1,6 +1,7 @@
 import os
 from typing import Any, Dict, List, Optional
 
+import re
 import cv2
 import fitz
 import layoutparser as lp
@@ -14,6 +15,7 @@ from transformers import DetrImageProcessor, TableTransformerForObjectDetection,
 from doclayout_yolo import YOLOv10
 from huggingface_hub import hf_hub_download
 from torchvision import transforms
+from struct_eqtable import build_model
 
 from pdf2data.support import (block_organizer, box_corretor, iou,
                               order_horizontal, order_vertical, sobreposition, MaxResize, outputs_to_objects)
@@ -232,6 +234,7 @@ class LayoutParser(BaseModel):
             page,   # Image to predict
             imgsz=1024,        # Prediction image size
             conf=threshold,                  # Confidence threshold    # Device to use (e.g., 'cuda:0' or 'cpu')
+            verbose=False
             )[0].boxes.data
         exist_figure: bool = False
         boxes: List[List[float]] = []
@@ -604,12 +607,61 @@ class LayoutParser(BaseModel):
         extracted_blocks["page_type"] = exist_page
         return extracted_blocks
 
+class Table2Latex(BaseModel):
+    model_name: str
+    max_new_tokens: int = 1024
+    max_waiting_time: int = 60
+    zoom: float = 3
+    _model: Optional[Any] = PrivateAttr(default=None)
+
+    def model_post_init(self, __context: Any) -> None:
+        table_regex: str = r"\\begin\{tabularx?\}\{[^}]*\}(.+)\\end\{tabularx?\}"
+        self._table_regex = re.compile(table_regex, re.IGNORECASE | re.MULTILINE)
+        if self.model_name == "U4R/StructTable-InternVL2-1B":
+            self._model = build_model(
+            self.model_name, 
+            max_new_tokens=self.max_new_tokens, 
+            max_time=self.max_waiting_time,
+            tensorrt_path=None,
+            lmdeploy=True,
+        )
+            assert torch.cuda.is_available()
+            if not None:
+                self._model =  self._model.cuda()
+        else:
+            raise AttributeError("The model name is not valid")
+
+
+    def generate_latex(self, 
+        pdf: Any,
+        page_index: int,
+        table_coords: List[List[float]]):
+        page_for_zoom: Any = pdf[page_index]
+        # Correct the tablle coordinates acording the the page size
+        table_rect: fitz.Rect = fitz.Rect(table_coords[0], table_coords[1], table_coords[2], table_coords[3])
+        # apply zoom to increase resolution
+        mat: fitz.Matrix = fitz.Matrix(self.zoom, self.zoom)
+        image: Any = page_for_zoom.get_pixmap(matrix=mat, clip=table_rect)
+        image.save("image.png")
+        image: Any = Image.open("image.png")
+        os.remove('image.png')
+        with torch.no_grad():
+            output = self._model(image, output_format="latex")
+        if len(output) > 0:
+            response = output[0].replace("\n", " ")
+        else:
+            response = ""
+        table_result = self._table_regex.findall(response)
+        if len(table_result) > 0:
+            table: str = str(table_result[0])
+        else:
+            table = ""
+        print(response)
+        return table
 
 class TableStructureParser(BaseModel):
     model: str
     model_threshold: float = 0.7
-    x_corrector_value: float = 0.015
-    y_corrector_value: float = 0.02
     zoom: float = 1.3
     iou_lines: float = 0.05
     iou_struct: float = 0.02
@@ -683,6 +735,7 @@ class TableStructureParser(BaseModel):
         pdf: Any,
         page_index: int,
         table_coords: List[List[float]],
+        corrected_table_coords: List[List[float]],
         word_boxes: Dict[str, List[List[float]]] = {},
     ) -> Dict[str, List[List[float]]]:
         """Get the table structure from a table in a pdf
@@ -706,13 +759,11 @@ class TableStructureParser(BaseModel):
         page_for_zoom: Any = pdf[page_index]
         pdf_size: List[float] = page_for_zoom.mediabox
         # Correct the tablle coordinates acording the the page size
-        x_1, y_1, x_2, y_2 = box_corretor(
-            pdf_size,
-            table_coords,
-            x_corrector=self.x_corrector_value,
-            y_corrector=self.y_corrector_value,
-        )
-        table_rect: fitz.Rect = fitz.Rect(x_1, y_1, x_2, y_2)
+        table_rect: fitz.Rect = fitz.Rect(corrected_table_coords[0], corrected_table_coords[1], corrected_table_coords[2], corrected_table_coords[3])
+        x_1 = corrected_table_coords[0]
+        y_1 = corrected_table_coords[1]
+        x_2 = corrected_table_coords[2]
+        y_2 = corrected_table_coords[3]
         # apply zoom to increase resolution
         mat: fitz.Matrix = fitz.Matrix(self.zoom, self.zoom)
         image: Any = page_for_zoom.get_pixmap(matrix=mat, clip=table_rect)
@@ -789,7 +840,7 @@ class TableStructureParser(BaseModel):
         ordered_rows: List[List[float]] = order_horizontal(real_rows)
         # Order from left to right
         ordered_collumns: List[List[float]] = order_vertical(real_collumns)
-        # os.remove('image.png')
+        os.remove('image.png')
         return {"rows": ordered_rows, "collumns": ordered_collumns}
 
 
