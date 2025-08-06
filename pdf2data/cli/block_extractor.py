@@ -87,6 +87,11 @@ from pdf2data.support import get_doc_list
     help="iou value to consider that a word is inside a specific table entry",
 )
 @click.option(
+    "--struct_model",
+    default="microsoft/table-structure-recognition-v1.1-all",
+    help="table structure detection model threshold",
+)
+@click.option(
     "--struct_model_threshold",
     default=0.3,
     help="table structure detection model threshold",
@@ -134,6 +139,7 @@ def block_extractor(
     iou_struct: float,
     word_factor: float,
     word_iou: float,
+    struct_model: str,
     struct_model_threshold: float,
     reconstructor_type: str,
     brightness: float,
@@ -156,6 +162,7 @@ def block_extractor(
         iou_struct=iou_struct,
         word_factor=word_factor,
         word_iou=word_iou,
+        structure_model= struct_model,
         struct_model_threshold=struct_model_threshold,
         reconstructor_type=reconstructor_type,
         brightness=brightness,

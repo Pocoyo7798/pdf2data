@@ -4,7 +4,7 @@
 
 from setuptools import find_packages, setup
 
-with open("README.rst") as readme_file:
+with open("README.md") as readme_file:
     readme = readme_file.read()
 
 with open("HISTORY.rst") as history_file:
@@ -23,7 +23,7 @@ requirements = [
     "tensorflow<=2.19.0",
     "cython<=3.0.8",
     "effdet<=0.3.0",
-    "pillow>=11.3.0",
+    "pillow<=11.3.0",
     "levenshtein<=0.27.1",
     "trieregex<=1.0.0",
     "doclayout_yolo<=0.0.4",

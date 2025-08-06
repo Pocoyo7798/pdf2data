@@ -15,6 +15,7 @@ from doclayout_yolo import YOLOv10
 from huggingface_hub import hf_hub_download
 from torchvision import transforms
 from paddleocr import LayoutDetection
+import numpy
 
 from pdf2data.support import (block_organizer, box_corretor, iou,
                               order_horizontal, order_vertical, sobreposition, MaxResize, outputs_to_objects)
@@ -324,7 +325,10 @@ class LayoutParser(BaseModel):
         Dict[str, Any]
             A dictionary containing the scores, boxes coordinates and types of each block found.
         """
-        layout: List[Any] = model.predict(page, batch_size=1)["boxes"]
+        layout: List[Any] = []
+        predictions = model.predict(numpy.array(page), batch_size=1)
+        for prediction in predictions:
+            layout.extend(prediction["boxes"])
         exist_figure: bool = False
         boxes: List[List[float]] = []
         scores: List[float] = []
@@ -735,8 +739,11 @@ class TableStructureParser(BaseModel):
     brightness: float = 1
     contrast: float = 1
     _model: Any = PrivateAttr(default=None)
+    _labels: Any = PrivateAttr(default=None)
+    _device: Any = PrivateAttr(default=None)
+    _transform: Any = PrivateAttr(default=None)
     _existing_models: set = PrivateAttr(
-        default=set(["microsoft/table-transformer-structure-recognition"])
+        default=set(["microsoft/table-transformer-structure-recognition", "microsoft/table-structure-recognition-v1.1-all"])
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -744,13 +751,53 @@ class TableStructureParser(BaseModel):
             raise AttributeError(
                 f"The specified model is not available, the available, models are {self._existing_models}"
             )
-        self._model = TableTransformerForObjectDetection.from_pretrained(self.model)
+        else:
+            self._device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._model = TableTransformerForObjectDetection.from_pretrained(self.model)
+            self._labels = LAYOUT_PARSER_LABELS_REGISTRY["microsoft/table-transformer-structure-recognition"]
+            self._model.to(self._device)
+            self._transform = transforms.Compose([
+                MaxResize(1000),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
 
-    def table_image_structure(
+    """def model_post_init(self, __context: Any) -> None:
+        if self.model not in self._existing_models:
+            raise AttributeError(
+                f"The specified model is not available, the available, models are {self._existing_models}"
+            )
+        self._model = TableTransformerForObjectDetection.from_pretrained(self.model)"""
+
+    def table_image_structure_tatr(
         self,
         file_path: str,
-        open_image_type: str = "pillow",
     ) -> Any:
+        cropped_table = Image.open(file_path).convert("RGB")
+        width, height = cropped_table.size
+        pixel_values = self._transform(cropped_table).unsqueeze(0)
+        pixel_values = pixel_values.to(self._device)
+        with torch.no_grad():
+            outputs = self._model(pixel_values)
+        results: List[Dict[str, Any]] = outputs_to_objects(outputs, cropped_table.size, self._labels)
+        # Transform a tensor in a list
+        row_boxes: List[List[float]] = []
+        column_boxes: List[List[float]] = []
+        row_scores: List[float] = []
+        column_scores: List[float] = []
+        merge_cells_boxes: List[List[float]] = []
+        for result in results:
+            if result["score"] < self.model_threshold:
+                pass
+            elif result["label"] in set(["table row", "table projected row header"]):
+                row_boxes.append(result["bbox"])
+                row_scores.append(result["score"])
+            elif result["label"] in set(["table column", "table column header"]):
+                column_boxes.append(result["bbox"])
+                column_scores.append(result["score"])
+            elif result["label"] == "table spanning cell":
+                merge_cells_boxes.append(result["bbox"])
+        return {"row_boxes": row_boxes, "row_scores": row_scores, "column_boxes": column_boxes, "column_scores": column_scores, "merged_cells_boxes": merge_cells_boxes, "table_width": width, "table_height": height}
         """Get the table structure from a table image
 
         Parameters
@@ -768,6 +815,7 @@ class TableStructureParser(BaseModel):
         -------
         Any
             the rows and collumns coordinates, and the witdh and height of the image
+        """
         """
         if open_image_type == "pillow":
             image: Any = Image.open(file_path).convert("RGB")
@@ -794,7 +842,7 @@ class TableStructureParser(BaseModel):
         labels = results["labels"].tolist()
         boxes = results["boxes"].tolist()
         scores = results["scores"].tolist()
-        return labels, boxes, scores, width, height
+        return labels, boxes, scores, width, height"""
 
     def get_table_structure(
         self,
@@ -835,31 +883,14 @@ class TableStructureParser(BaseModel):
         mat: fitz.Matrix = fitz.Matrix(self.zoom, self.zoom)
         image: Any = page_for_zoom.get_pixmap(matrix=mat, clip=table_rect)
         image.save("image.png")
-        labels, boxes, scores, width, height = self.table_image_structure("image.png")
-        rows: List[List[float]] = []
-        collumns: List[List[float]] = []
-        row_scores: List[float] = []
-        collumns_scores: List[float] = []
-        for i in range(len(boxes)):
-            if labels[i] == 2:
-                # Correct the coordinates
-                x1: float = x_1 + boxes[i][0] / width * float(x_2 - x_1)
-                y1: float = y_1 + boxes[i][1] / height * float(y_2 - y_1)
-                x2: float = x_1 + boxes[i][2] / width * float(x_2 - x_1)
-                y2: float = y_1 + boxes[i][3] / height * float(y_2 - y_1)
-                coords: List[float] = [x1, y1, x2, y2]
-                if iou(coords, table_coords) > self.iou_struct:
-                    rows.append(coords)
-                    row_scores.append(scores[i])
-            elif labels[i] == 1:
-                x1 = x_1 + boxes[i][0] / width * float(x_2 - x_1)
-                y1 = y_1 + boxes[i][1] / height * float(y_2 - y_1)
-                x2 = x_1 + boxes[i][2] / width * float(x_2 - x_1)
-                y2 = y_1 + boxes[i][3] / height * float(y_2 - y_1)
-                coords = [x1, y1, x2, y2]
-                if iou(coords, table_coords) > self.iou_struct:
-                    collumns.append(coords)
-                    collumns_scores.append(scores[i])
+        structure_dict: Dict[str, Any] = self.table_image_structure_tatr("image.png")
+        rows: List[List[float]] = structure_dict["row_boxes"]
+        collumns: List[List[float]] = structure_dict["column_boxes"]
+        row_scores: List[float] = structure_dict["row_scores"]
+        collumns_scores: List[float] = structure_dict["column_scores"]
+        print(("###########"))
+        print(len(rows))
+        print(len(collumns))
         if len(rows) > 0:
             supressed_rows: List[KeyboardInterrupt] = tf.image.non_max_suppression(
                 rows,
@@ -888,6 +919,8 @@ class TableStructureParser(BaseModel):
                 real_collumns.append(collumns[index])
         else:
             real_collumns = collumns
+        print(len(real_rows))
+        print(len(real_collumns))
         if "rows" in word_boxes.keys():
             word_rows: List[List[float]] = word_boxes["rows"]
         else:
@@ -937,7 +970,9 @@ LAYOUT_PARSER_LABELS_REGISTRY: Dict[str, Dict[int, str]] = {
     "TableBank_faster_rcnn_R_50_FPN_3x": {0: "Table"},
     "TableBank_faster_rcnn_R_101_FPN_3x": {0: "Table"},
     "DocLayout-YOLO-DocStructBench": {0: 'title', 1: 'plain text', 2: 'abandon', 3: 'figure', 4: 'figure_caption', 5: 'table', 6: 'table_caption', 7: 'table_footnote', 8: 'isolate_formula', 9: 'formula_caption'},
-    "microsoft/table-transformer-detection": {0: 'table', 1: 'table rotated', 2: 'no object'}
+    "microsoft/table-transformer-detection": {0: 'table', 1: 'table rotated', 2: 'no object'},
+    "PP-DocLayout-L": {},
+    "microsoft/table-transformer-structure-recognition": {0: 'table', 1: 'table column', 2: 'table row', 3: 'table column header', 4: 'table projected row header', 5: 'table spanning cell', 6: 'no object'}
 }
 
 LAYOUT_PARSER_CONFIG_REGISTRY: Dict[str, str] = {
@@ -948,10 +983,10 @@ LAYOUT_PARSER_CONFIG_REGISTRY: Dict[str, str] = {
     "TableBank_faster_rcnn_R_101_FPN_3x": "lp://TableBank/faster_rcnn_R_101_FPN_3x/config",
 }
 TABLE_WORDS_REGISTRY: set = set(["TableRegion", "Table", "table", "table rotated"])
-FIGURE_WORDS_REGISTRY: set = set(["ImageRegion", "Figure", "figure", "image", "chart"])
+FIGURE_WORDS_REGISTRY: set = set(["ImageRegion", "Figure", "figure", "chart"])
 TEXT_WORDS_REGISTRY: set = set(["TextRegion", "Text", "plain text", "text", "abstract"])
-TITLE_WORDS_REGISTRY: set = set(["Title", "title", "document title", "paragraph title"])
-FIGURE_CAPTIONS_WORDS_REGISTRY: set = set(["figure_caption", "figure caption", "figure title"])
-TABLE_CAPTIONS_WORDS_REGISTRY: set = set(["table_caption", "table caption"])
+TITLE_WORDS_REGISTRY: set = set(["Title", "title", "doc_title", "paragraph_title"])
+FIGURE_CAPTIONS_WORDS_REGISTRY: set = set(["figure_caption", "figure_caption", "figure_title", "chart_title"])
+TABLE_CAPTIONS_WORDS_REGISTRY: set = set(["table_caption", "table_caption", "table_title"])
 TABLE_FOOTNOTE_WORDS_REGISTRY: set = set(["table_footnote", "footnotes"])
 EQUATION_WORDS_REGISTRY: set = set(["formula"])
