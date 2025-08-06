@@ -48,7 +48,7 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--table_zoom",
-    default=1.5,
+    default=3,
     help="zoom of the image containing the table",
 )
 @click.option(
@@ -58,12 +58,12 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--x_table_corr",
-    default=0.015,
+    default=0.005,
     help="factor correct the table coordinates in the x axis",
 )
 @click.option(
     "--y_table_corr",
-    default=0.015,
+    default=0.005,
     help="factor correct the table coordinates in the y axis",
 )
 @click.option(
@@ -162,14 +162,13 @@ def block_extractor(
         iou_struct=iou_struct,
         word_factor=word_factor,
         word_iou=word_iou,
-        structure_model= struct_model,
+        structure_model=struct_model,
         struct_model_threshold=struct_model_threshold,
         reconstructor_type=reconstructor_type,
         brightness=brightness,
         contrast=contrast,
         letter_ratio=letter_ratio
     )
-    extractor.model_post_init(None)
     mask: LayoutParser = LayoutParser(
         model=layout_model,
         model_threshold=layout_model_threshold,
@@ -182,6 +181,7 @@ def block_extractor(
     doc_number: int = 1
     for file in file_list:
         print(f'{doc_number}//{total_docs} processed')
+        print(file)
         file_path: str = input_folder + "/" + file
         layout = mask.get_layout(file_path)
         extractor.get_blocks(file_path, layout, output_folder)
