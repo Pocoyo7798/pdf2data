@@ -16,6 +16,7 @@ from doclayout_yolo import YOLOv10
 from huggingface_hub import hf_hub_download
 from torchvision import transforms
 from struct_eqtable import build_model
+from paddleocr import LayoutDetection
 
 from pdf2data.support import (block_organizer, box_corretor, iou,
                               order_horizontal, order_vertical, sobreposition, MaxResize, outputs_to_objects)
@@ -40,7 +41,8 @@ class LayoutParser(BaseModel):
                 "TableBank_faster_rcnn_R_50_FPN_3x",
                 "TableBank_faster_rcnn_R_101_FPN_3x",
                 "microsoft/table-transformer-detection",
-                "DocLayout-YOLO-DocStructBench"
+                "DocLayout-YOLO-DocStructBench",
+                "PP-DocLayout-L"
             ]
         )
     )
@@ -69,6 +71,8 @@ class LayoutParser(BaseModel):
         elif self.model == "DocLayout-YOLO-DocStructBench":
             filepath = hf_hub_download(repo_id="juliozhao/DocLayout-YOLO-DocStructBench", filename="doclayout_yolo_docstructbench_imgsz1024.pt")
             self._model = YOLOv10(filepath)
+        elif self.model == "PP-DocLayout-L":
+            self._model = LayoutDetection(model_name="PP-DocLayout-L")
         elif self.model_path is not None:
             self._model = lp.Detectron2LayoutModel(
                 f"{self.model_path}/config.yaml",
@@ -102,6 +106,8 @@ class LayoutParser(BaseModel):
             elif self.table_model == "DocLayout-YOLO-DocStructBench":
                 filepath = hf_hub_download(repo_id="juliozhao/DocLayout-YOLO-DocStructBench", filename="doclayout_yolo_docstructbench_imgsz1024.pt")
                 self._table_model = YOLOv10(filepath)
+            elif self.table_model == "PP-DocLayout-L":
+                self._table_model = LayoutDetection(model_name="PP-DocLayout-L")
             elif self.table_model_path is not None:
                 self._model = lp.Detectron2LayoutModel(
                     f"{self.table_model_path}/config.yaml",
@@ -279,6 +285,98 @@ class LayoutParser(BaseModel):
                 boxes.append([x1, y1, x2, y2])
                 scores.append(entry[4].item())
                 types.append("Table Footnote")
+        return {
+            "boxes": boxes,
+            "scores": scores,
+            "types": types,
+            "table_boxes": table_boxes,
+            "table_scores": table_scores,
+            "table_type": table_types,
+            "exist_figure": exist_figure,
+        }
+    
+    @staticmethod
+    def generate_layout_pp_doc_block(
+        model: Any,
+        page: Any,
+        width: float,
+        pdf_width: float,
+        height: float,
+        pdf_height: float,
+        threshold: str,
+    ) -> Dict[str, Any]:
+        """Generate a PDF layout from a page image using "PP-DocLayout-L" model
+
+        Parameters
+        ----------
+        model : Any
+            model loaded to detect the layout
+        page : Any
+            page to be analyzed
+        width : float
+            width of the image
+        pdf_width : float
+            width of the pdf
+        height : float
+            height of the image
+        pdf_height : float
+            height of the pdf
+
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary containing the scores, boxes coordinates and types of each block found.
+        """
+        layout: List[Any] = model.predict(page, batch_size=1)["boxes"]
+        exist_figure: bool = False
+        boxes: List[List[float]] = []
+        scores: List[float] = []
+        types: List[str] = []
+        table_boxes: List[List[float]] = []
+        table_scores: List[float] = []
+        table_types: List[str] = []
+        for entry in layout:
+            # Retrieve the bounding box
+            x1: float = entry["coordinate"][0] / width * pdf_width
+            x2: float = entry["coordinate"][2] / width * pdf_width
+            y1: float = entry["coordinate"][1] / height * pdf_height
+            y2: float = entry["coordinate"][3] / height * pdf_height
+            entry_type = entry["label"]
+            if entry["score"] < threshold:
+                pass
+            if entry_type in TEXT_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Text")
+            elif entry_type in TITLE_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Title")
+            elif entry_type in TABLE_WORDS_REGISTRY:
+                table_boxes.append([x1, y1, x2, y2])
+                table_scores.append(entry["score"])
+                table_types.append("Table")
+            elif entry_type in FIGURE_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Figure")
+                exist_figure = True
+            elif entry_type in FIGURE_CAPTIONS_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Figure Caption")
+            elif entry_type in TABLE_CAPTIONS_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Table Caption")
+            elif entry_type in TABLE_FOOTNOTE_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Table Footnote")
+            elif entry_type in EQUATION_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Equation")
         return {
             "boxes": boxes,
             "scores": scores,
@@ -497,6 +595,16 @@ class LayoutParser(BaseModel):
                     self.model_threshold,
                     self._labels
                 )
+            elif self.model == "PP-DocLayout-L":
+                first_layout: Dict[str, Any] = LayoutParser.generate_layout_pp_doc_block(
+                    self._model,
+                    page,
+                    width,
+                    pdf_width,
+                    height,
+                    pdf_height,
+                    self.model_threshold,
+                )
             else:
                 first_layout = LayoutParser.generate_layout_lp(
                     self._model,
@@ -535,6 +643,16 @@ class LayoutParser(BaseModel):
                         pdf_height,
                         self.table_model_threshold,
                         self._labels
+                    )
+                elif self.table_model == "PP-DocLayout-L":
+                    sec_layout: Dict[str, Any] = LayoutParser.generate_layout_pp_doc_block(
+                        self._model,
+                        page,
+                        width,
+                        pdf_width,
+                        height,
+                        pdf_height,
+                        self.model_threshold,
                     )
                 else:
                     sec_layout = LayoutParser.generate_layout_lp(
@@ -881,9 +999,10 @@ LAYOUT_PARSER_CONFIG_REGISTRY: Dict[str, str] = {
     "TableBank_faster_rcnn_R_101_FPN_3x": "lp://TableBank/faster_rcnn_R_101_FPN_3x/config",
 }
 TABLE_WORDS_REGISTRY: set = set(["TableRegion", "Table", "table", "table rotated"])
-FIGURE_WORDS_REGISTRY: set = set(["ImageRegion", "Figure", "figure"])
-TEXT_WORDS_REGISTRY: set = set(["TextRegion", "Text", "plain text"])
-TITLE_WORDS_REGISTRY: set = set(["Title", "title"])
-FIGURE_CAPTIONS_WORDS_REGISTRY: set = set(["figure_caption"])
-TABLE_CAPTIONS_WORDS_REGISTRY: set = set(["table_caption"])
-TABLE_FOOTNOTE_WORDS_REGISTRY: set = set(["table_footnote"])
+FIGURE_WORDS_REGISTRY: set = set(["ImageRegion", "Figure", "figure", "image", "chart"])
+TEXT_WORDS_REGISTRY: set = set(["TextRegion", "Text", "plain text", "text", "abstract"])
+TITLE_WORDS_REGISTRY: set = set(["Title", "title", "document title", "paragraph title"])
+FIGURE_CAPTIONS_WORDS_REGISTRY: set = set(["figure_caption", "figure caption", "figure title"])
+TABLE_CAPTIONS_WORDS_REGISTRY: set = set(["table_caption", "table caption"])
+TABLE_FOOTNOTE_WORDS_REGISTRY: set = set(["table_footnote", "footnotes"])
+EQUATION_WORDS_REGISTRY: set = set(["formula"])
