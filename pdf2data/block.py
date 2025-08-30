@@ -4,16 +4,20 @@ import re
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from PIL import Image
+import numpy
 
 import fitz
 import PyPDF2
 import tensorflow as tf
 from pydantic import BaseModel, PrivateAttr
+import easyocr
 
 from pdf2data.mask import TableStructureParser, Table2Latex
 from pdf2data.support import (box_corretor, find_legend, iou, order_horizontal,
                               order_vertical, word_horiz_box_corrector,
                               words_from_line, Latex2Table)
+from paddleocr import TableCellsDetection, TextDetection, PaddleOCR
 
 
 class TableWords(BaseModel):
@@ -22,11 +26,172 @@ class TableWords(BaseModel):
     y_corrector_value: float = 0.005
     iou_horizontal: float = 0.3
     iou_vertical: float = 0.05
+    word_detection_threshold: float = 0.3
+    table_zoom: float = 1.0
+    cell_zoom: float = 1.0
+    ocr_model : Optional[str] =  None
+    word_detection_model : Optional[str] =  None
+    _ocr_model: Optional[Any] = PrivateAttr(default=None)
+    _word_detection_model: Optional[Any] = PrivateAttr(default=None)
+    _existing_ocr_models: set = PrivateAttr(
+        default=set(["easy_ocr", "padle_ocr"])
+    )
+    _existing_detection_models: set = PrivateAttr(
+        default=set(["RT-DETR-L_wireless_table_cell_det", "RT-DETR-L_wired_table_cell_det"])
+    )
 
-    def get_words(
+    def model_post_init(self, __context: Any) -> None:
+        if self.ocr_model is None:
+            pass
+        elif self.ocr_model not in self._existing_ocr_models:
+            raise AttributeError("The ocr model provided is not valid.")
+        elif self.ocr_model == "padle_ocr":
+            self._ocr_model = PaddleOCR(
+                lang="en", # Specify French recognition model with the lang parameter,
+                use_doc_orientation_classify=False, # Disable document orientation classification model
+                use_doc_unwarping=False, # Disable text image unwarping model
+                use_textline_orientation=False, # Disable text line orientation classification model
+            )
+        elif self.ocr_model == "easy_ocr":
+            self._ocr_model = easyocr.Reader(['en'])
+        if self.word_detection_model is None:
+            pass
+        elif self.word_detection_model not in self._existing_detection_models:
+            raise AttributeError("The word detection model provided is not valid.")
+        elif self.word_detection_model in set(["RT-DETR-L_wireless_table_cell_det", "RT-DETR-L_wired_table_cell_det"]):
+            self._word_detection_model = TableCellsDetection(model_name=self.word_detection_model)
+
+    def get_cells_by_detr_cell(self, page: Any, table_coords: List[List[float]]) -> List[List[float]]:
+        """detect the table cell boxes using padl padle cell detection models
+
+        Returns
+        -------
+        List[List[float]]
+            A list containing the boxes from all the table cells found
+        """
+        x_1 = table_coords[0]
+        y_1 = table_coords[1]
+        x_2 = table_coords[2]
+        y_2 = table_coords[3]
+        table_rect: fitz.Rect = fitz.Rect(x_1, y_1, x_2, y_2)
+        mat: fitz.Matrix = fitz.Matrix(self.table_zoom, self.table_zoom)
+        image: Any = page.get_pixmap(matrix=mat, clip=table_rect)
+        pillow_image = Image.frombytes("RGB", [image.width, image.height], image.samples)
+        width, height = pillow_image.size
+        predictions = self._word_detection_model.predict(numpy.array(pillow_image), threshold=self.word_detection_threshold, batch_size=1)
+        cells: List[Dict[str, Any]] = []
+        cell_list: List[List[float]] = []
+        for prediction in predictions:
+            cells.extend(prediction["boxes"])
+        for cell in cells:
+            if cell["label"] != "cell":
+                pass
+            else:
+                x1: float = table_coords[0] + cell["coordinate"][0] / width * float(table_coords[2] - table_coords[0])
+                y1: float = table_coords[1] + cell["coordinate"][1] / height * float(table_coords[3] - table_coords[1])
+                x2: float = table_coords[0] + cell["coordinate"][2] / width * float(table_coords[2] - table_coords[0])
+                y2: float = table_coords[1] + cell["coordinate"][3] / height * float(table_coords[3] - table_coords[1])
+                cell_box = [x1, y1, x2, y2]
+                cell_list.append(cell_box)
+        return cell_list
+
+    def get_cells_by_structure(self, table_structure: Optional[Dict[str, List[List[float]]]] = None) -> List[List[float]]:
+        """create all the table cell boxes from the table rows and collumns coordinates
+
+        Returns
+        -------
+        List[List[float]]
+            A list containing the boxes from all the table cells found
+        """
+        rows: List[List[float]] = table_structure["rows"]
+        columns: List[List[float]] = table_structure["collumns"]
+        cell_list: List[List[float]] = []
+        for row in rows:
+            for column in columns:
+                cell: List[float] = [
+                        column[0],
+                        row[1],
+                        column[2],
+                        row[3],
+                    ]
+                cell_list.append(cell)
+        return cell_list
+    
+    def get_word_dict_easyocr(self, page: Any, table_coords: List[float], word_boxes: List[List[float]]):
+        words_list: List[str] = []
+        i = 0
+        for box in word_boxes:
+            x_1 = box[0]
+            y_1 = box[1]
+            x_2 = box[2]
+            y_2 = box[3]
+            cell_rect: fitz.Rect = fitz.Rect(x_1, y_1, x_2, y_2)
+            mat: fitz.Matrix = fitz.Matrix(self.cell_zoom, self.cell_zoom)
+            image: Any = page.get_pixmap(matrix=mat, clip=cell_rect)
+            pillow_image = Image.frombytes("RGB", [image.width, image.height], image.samples)
+            #pillow_image.save(f"table_{table_coords[0]}_{table_coords[1]}_{table_coords[2]}_{table_coords[3]}_cell_{i}.png")
+            cell_text_output = self._ocr_model.readtext(numpy.array(pillow_image))
+            text_list = []
+            for text in cell_text_output:
+                 text_list.extend(text[1])
+            words_list.append(" ".join(text_list))
+            i += 1
+        return {"words": words_list, "boxes": word_boxes, "table_box": table_coords}
+
+    def get_word_dict_padle(self, page: Any, table_coords: List[float], word_boxes: List[List[float]]):
+        words_list: List[str] = []
+        i = 0
+        for box in word_boxes:
+            x_1 = box[0]
+            y_1 = box[1]
+            x_2 = box[2]
+            y_2 = box[3]
+            cell_rect: fitz.Rect = fitz.Rect(x_1, y_1, x_2, y_2)
+            mat: fitz.Matrix = fitz.Matrix(self.cell_zoom, self.cell_zoom)
+            image: Any = page.get_pixmap(matrix=mat, clip=cell_rect)
+            pillow_image = Image.frombytes("RGB", [image.width, image.height], image.samples)
+            #pillow_image.save(f"table_{table_coords[0]}_{table_coords[1]}_{table_coords[2]}_{table_coords[3]}_cell_{i}.png")
+            cell_text_output = self._ocr_model.predict(numpy.array(pillow_image))
+            text_list = []
+            for text in cell_text_output:
+                 text_list.extend(text["rec_texts"])
+            words_list.append(" ".join(text_list))
+            i += 1
+        return {"words": words_list, "boxes": word_boxes, "table_box": table_coords}
+    
+    def get_words_ocr(
+        self, page_size: List[float], page: Any, table_coords: List[float], table_structure: Optional[Dict[str, List[List[float]]]] = None
+    ) -> Dict[str, List[Any]]:
+        """get words from a table using ocr
+
+        Parameters
+        ----------
+        page_size : List[float]
+            dimensions of the page
+        page : Any
+            page where the table is
+        table_coords : List[List[float]]
+            table coordinates
+
+        Returns
+        -------
+        Dict[str, List[Any]]
+            a dictionary containing the merged words, their respective coordinates and the table size
+        """
+        if self.word_detection_model is None:
+            word_boxes = self.get_cells_by_structure(table_structure)
+        elif self.word_detection_model == "RT-DETR-L_wireless_table_cell_det":
+            word_boxes = self.get_cells_by_detr_cell(page, table_coords)
+        if self.ocr_model == "padle_ocr":
+            dict = self.get_word_dict_padle(page, table_coords, word_boxes)
+        elif self.ocr_model == "easy_ocr":
+            dict = self.get_word_dict_easyocr(page, table_coords, word_boxes)
+        return dict
+    
+    def get_words_pymupdf(
         self, page_size: List[float], page: Any, table_coords: List[List[float]]
     ) -> Dict[str, List[Any]]:
-        """get words from a table
+        """get words from a table using pymupdf
 
         Parameters
         ----------
@@ -43,12 +208,10 @@ class TableWords(BaseModel):
             a dictionary containing the merged words, their respective coordinates and the table size
         """
         # Correct the table coordinates acording the the page size
-        x_1, y_1, x_2, y_2 = box_corretor(
-            page_size,
-            table_coords,
-            x_corrector=self.x_corrector_value,
-            y_corrector=self.y_corrector_value,
-        )
+        x_1 = table_coords[0]
+        y_1 = table_coords[1]
+        x_2 = table_coords[2]
+        y_2 = table_coords[3]
         table_rect: fitz.Rect = fitz.Rect(x_1, y_1, x_2, y_2)
         # Retrive the text dict only in the table
         block_list: Any = page.get_text(
@@ -78,8 +241,33 @@ class TableWords(BaseModel):
         )
         return dict
 
+    def get_words(
+        self, page_size: List[float], page: Any, table_coords: List[List[float]], table_structure: Optional[Dict[str, List[List[float]]]] = None
+    ) -> Dict[str, List[Any]]:
+        """get words from a table
+
+        Parameters
+        ----------
+        page_size : List[float]
+            dimensions of the page
+        page : Any
+            page where the table is
+        table_coords : List[List[float]]
+            table coordinates
+
+        Returns
+        -------
+        Dict[str, List[Any]]
+            a dictionary containing the merged words, their respective coordinates and the table size
+        """
+        if self.ocr_model is not None:
+            dict: Dict[str, List[Any]] = self.get_words_ocr(page_size, page, table_coords, table_structure)
+        else:
+            dict = self.get_words_pymupdf(page_size, page, table_coords)
+        return dict
+
     def table_struture_with_boxes(
-        self, boxes: List[List[float]], table_coords: List[float]
+        self, boxes: List[List[float]], table_coords: List[float], page
     ) -> Dict[str, List[List[float]]]:
         """generate the table structure from the word coordinates
 
@@ -97,6 +285,8 @@ class TableWords(BaseModel):
         """
         horizontal_boxes: List[List[float]] = []
         vertical_boxes: List[List[float]] = []
+        if self.ocr_model is None and self.word_detection_model is not None:
+            self.get_cells_by_detr_cell(page, table_coords)
         for box in boxes:
             # Generate the coordenates of words collumns and lines
             x1_horizontal, x1_vertical = float(table_coords[0]), float(box[0])
@@ -370,7 +560,6 @@ class Table(BaseModel):
         """
         i_vertical: int = 1
         # Go through all entries in the table
-        print(self.block)
         self.find_collumn_headers()
         self.find_row_indexes()
         self.legend = find_legend(
@@ -478,8 +667,12 @@ class BlockExtractor(BaseModel):
     contrast: float = 1
     letter_ratio: float = 4
     reconstructor_type: str = "entry_by_entry"
-    structure_model: str = "microsoft/table-transformer-structure-recognition"
+    structure_model: Optional[str] = "microsoft/table-transformer-structure-recognition"
     struct_model_threshold: float = 0.3
+    ocr_model : Optional[str] =  None
+    word_detection_model : Optional[str] =  None
+    word_detection_threshold: float = 0.3
+    cell_zoom: float = 1.0
     _structure_parser: Optional[TableStructureParser] = PrivateAttr(default=None)
     _word_extractor: Optional[TableWords] = PrivateAttr(default=None)
     _reconstructor: TableReconstructor = PrivateAttr(default=None)
@@ -487,34 +680,45 @@ class BlockExtractor(BaseModel):
     _latex_parser: Latex2Table = PrivateAttr(default=None)
 
     def model_post_init(self, __context: Any) -> None:
-        if self.structure_model == "microsoft/table-transformer-structure-recognition":
+        if self.structure_model in set(["microsoft/table-transformer-structure-recognition", "microsoft/table-structure-recognition-v1.1-all", "RT-DETR-L_wireless_table_cell_det", "RT-DETR-L_wired_table_cell_det"]):
             self._reconstructor = TableReconstructor(iou_threshold=self.word_iou)
             self._structure_parser = TableStructureParser(
                 model=self.structure_model,
                 model_threshold=self.struct_model_threshold,
-                x_corrector_value=self.x_table_corr,
-                y_corrector_value=self.y_table_corr,
                 zoom=self.table_zoom,
                 iou_lines=self.iou_lines,
                 iou_struct=self.iou_struct,
                 brightness=self.brightness,
                 contrast = self.contrast
             )
-            self._word_extractor = TableWords(word_proximity_factor=self.word_factor)
+            self._word_extractor = TableWords(word_proximity_factor=self.word_factor, ocr_model=self.ocr_model, word_detection_model=self.word_detection_model, word_detection_threshold=self.word_detection_threshold, cell_zoom=self.cell_zoom)
         elif self.structure_model == "U4R/StructTable-InternVL2-1B":
             self._table2latex_model = Table2Latex(model_name=self.structure_model,
-                x_corrector_value=self.x_table_corr,
-                y_corrector_value=self.y_table_corr,
                 zoom=self.table_zoom,)
             self._latex_parser = Latex2Table()
+        else:
+            self._reconstructor = TableReconstructor(iou_threshold=self.word_iou)
+            self._word_extractor = TableWords(word_proximity_factor=self.word_factor, ocr_model=self.ocr_model, word_detection_model=self.word_detection_model, word_detection_threshold=self.word_detection_threshold, cell_zoom=self.cell_zoom)
 
-    def generate_block_microsoft(self, document, j, initial_box, corrected_box, pdf_size, page):
-        entries: Dict[str, List[Any]] = self._word_extractor.get_words(
-                            pdf_size, page, initial_box
+    def generate_block_structure_detection(self, document, j, initial_box, corrected_box, pdf_size, page):
+        if self.structure_model is None:
+            entries: Dict[str, List[Any]] = self._word_extractor.get_words(
+                            pdf_size, page, corrected_box
                         )
-        if self.correct_struct is True:
+            if self.word_detection_model is not None:
+                word_boxes = self._word_extractor.get_cells_by_detr_cell(page, corrected_box)
+            else:
+                word_boxes = entries["boxes"]
+            table_structure: Dict[str, List[List[float]]] = self._word_extractor.table_struture_with_boxes(
+                                word_boxes, entries["table_box"], page)
+        elif self.correct_struct is True:
+            if self.word_detection_model is None and self.ocr_model is not None:
+                raise AttributeError("You need to pass a word detection model to use ocr to correct the structure")
+            entries: Dict[str, List[Any]] = self._word_extractor.get_words(
+                            pdf_size, page, corrected_box
+                        )
             word_structure: Dict[str, List[List[float]]] = self._word_extractor.table_struture_with_boxes(
-                                entries["boxes"], entries["table_box"]
+                                entries["boxes"], entries["table_box"], page
                             )
             table_structure: Dict[
                 str, List[List[float]]
@@ -526,6 +730,9 @@ class BlockExtractor(BaseModel):
                 self._structure_parser.get_table_structure(
                 document, j, initial_box, corrected_box
                 ))
+            entries: Dict[str, List[Any]] = self._word_extractor.get_words(
+                            pdf_size, page, corrected_box, table_structure=table_structure
+                        )
         if self.reconstructor_type == "entry_by_entry":
             block: List[List[str]] = self._reconstructor.entry_by_entry(
             entries, table_structure
@@ -615,12 +822,12 @@ class BlockExtractor(BaseModel):
                             y_corrector=self.y_table_corr,
                         )
                         corrected_box: List[float] = [x_1, y_1, x_2, y_2]
-                        if self.structure_model == "microsoft/table-transformer-structure-recognition":
-                            block = self.generate_block_microsoft(document, j, initial_box, corrected_box, pdf_size, page)
+                        if self.structure_model in set(["microsoft/table-transformer-structure-recognition", "microsoft/table-structure-recognition-v1.1-all", "RT-DETR-L_wireless_table_cell_det", "RT-DETR-L_wired_table_cell_det", None]):
+                            block = self.generate_block_structure_detection(document, j, initial_box, corrected_box, pdf_size, page)
                         elif self.structure_model == "U4R/StructTable-InternVL2-1B":
                             block = self.generate_block_llm(document, j, corrected_box)
                         table: Table = Table(name=table_name,
-                            page=j + 1, block=block, number=table_number, box=corrected_box, letter_ratio=self.letter_ratio
+                            page=j + 1, block=block, number=table_number, box=initial_box, letter_ratio=self.letter_ratio
                         )
                         block_dict: Dict[str, Any] = table.create_dict(
                             page, pdf_size, page_boxes, page_types, i

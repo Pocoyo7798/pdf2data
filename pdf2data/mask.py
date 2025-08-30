@@ -16,7 +16,7 @@ from doclayout_yolo import YOLOv10
 from huggingface_hub import hf_hub_download
 from torchvision import transforms
 from struct_eqtable import build_model
-from paddleocr import LayoutDetection
+from paddleocr import LayoutDetection, TableCellsDetection
 import numpy
 
 from pdf2data.support import (block_organizer, box_corretor, iou,
@@ -650,7 +650,7 @@ class LayoutParser(BaseModel):
                     )
                 elif self.table_model == "PP-DocLayout-L":
                     sec_layout: Dict[str, Any] = LayoutParser.generate_layout_pp_doc_block(
-                        self._model,
+                        self._table_model,
                         page,
                         width,
                         pdf_width,
@@ -670,29 +670,13 @@ class LayoutParser(BaseModel):
                 table_boxes2: List[List[float]] = sec_layout["table_boxes"]
                 table_scores2: List[float] = sec_layout["table_scores"]
                 table_types2: List[str] = sec_layout["table_type"]
-                k = 0
-                for table2 in table_boxes2:
-                    area2: float = (table2[2] - table2[0]) * (table2[3] - table2[1])
-                    max_iou = 0
-                    j = 0
-                    for table1 in table_boxes1:
-                        area1: float = (table1[2] - table1[0]) * (table1[3] - table1[1])
-                        if iou(table2, table1) > max_iou:
-                            max_iou = iou(table2, table1)
-                        if area2 < area1 and iou(table2, table1) > 0.5:
-                            table_boxes1[j] = table2
-                            table_scores1[j] = table_scores2[k]
-                            table_types1[j] = table_types2[k]
-                            break
-                        j = j + 1
-                    if max_iou < 0.1:
-                        table_boxes1.append(table2)
-                        table_scores1.append(table_scores2[k])
-                        table_types1.append(table_types2[k])
-                    k = k + 1
-            boxes = boxes + table_boxes1
-            scores = scores + table_scores1
-            types = types + table_types1
+                boxes = boxes + table_boxes2
+                scores = scores + table_scores2
+                types = types + table_types2
+            else:
+                boxes = boxes + table_boxes1
+                scores = scores + table_scores1
+                types = types + table_types1
             horder_args = order_horizontal(boxes, "argument_list")
             horder_boxes = []
             horder_scores = []
@@ -814,16 +798,11 @@ class TableStructureParser(BaseModel):
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
 
-    """def model_post_init(self, __context: Any) -> None:
-        if self.model not in self._existing_models:
-            raise AttributeError(
-                f"The specified model is not available, the available, models are {self._existing_models}"
-            )
-        self._model = TableTransformerForObjectDetection.from_pretrained(self.model)"""
-
     def table_image_structure_tatr(
         self,
         file_path: str,
+        table_coords_corrected: List[float],
+        table_coords: List[float]
     ) -> Any:
         cropped_table = Image.open(file_path).convert("RGB")
         width, height = cropped_table.size
@@ -839,62 +818,24 @@ class TableStructureParser(BaseModel):
         column_scores: List[float] = []
         merge_cells_boxes: List[List[float]] = []
         for result in results:
+            x1: float = float(table_coords_corrected[0]) + float(result["bbox"][0]) / float(width) * float(table_coords_corrected[2] - table_coords_corrected[0])
+            y1: float = float(table_coords_corrected[1]) + float(result["bbox"][1]) / float(height) * float(table_coords_corrected[3] - table_coords_corrected[1])
+            x2: float = float(table_coords_corrected[0]) + float(result["bbox"][2]) / float(width) * float(table_coords_corrected[2] - table_coords_corrected[0])
+            y2: float = float(table_coords_corrected[1]) + float(result["bbox"][3]) / float(height) * float(table_coords_corrected[3] - table_coords_corrected[1])
+            new_box = [x1, y1, x2, y2]
             if result["score"] < self.model_threshold:
                 pass
-            elif result["label"] in set(["table row", "table projected row header"]):
-                row_boxes.append(result["bbox"])
+            elif iou(new_box, table_coords) < self.iou_struct:
+                pass
+            elif result["label"] in set(["table row"]):
+                row_boxes.append(new_box)
                 row_scores.append(result["score"])
-            elif result["label"] in set(["table column", "table column header"]):
-                column_boxes.append(result["bbox"])
+            elif result["label"] in set(["table column"]):
+                column_boxes.append(new_box)
                 column_scores.append(result["score"])
             elif result["label"] == "table spanning cell":
-                merge_cells_boxes.append(result["bbox"])
-        return {"row_boxes": row_boxes, "row_scores": row_scores, "column_boxes": column_boxes, "column_scores": column_scores, "merged_cells_boxes": merge_cells_boxes, "table_width": width, "table_height": height}
-        """Get the table structure from a table image
-
-        Parameters
-        ----------
-        file_path : str
-            path to the file containing the table image
-        open_image_type : str, optional
-            library to open the image, by default "pillow"
-        brightness : float, optional
-            brightness of the image, by default 1
-        contrast : float, optional
-            contrast of the image, by default 1.1
-
-        Returns
-        -------
-        Any
-            the rows and collumns coordinates, and the witdh and height of the image
-        """
-        """
-        if open_image_type == "pillow":
-            image: Any = Image.open(file_path).convert("RGB")
-            brighter: Any = ImageEnhance.Brightness(image)
-            new_image: Any = brighter.enhance(self.brightness)
-            contraster: Any = ImageEnhance.Contrast(new_image)
-            final_image: Any = contraster.enhance(self.contrast)
-            width, height = image.size
-        else:
-            image = cv2.imread(file_path)
-            dimensions: List[float] = image.shape
-            height = dimensions[0]
-            width = dimensions[1]
-            final_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCR_CB)
-        feature_extractor = DetrImageProcessor()
-        encoding: Any = feature_extractor(final_image, return_tensors="pt")
-        encoding.keys()
-        with torch.no_grad():
-            outputs: Any = self._model(**encoding)
-        results: Dict[str, Any] = feature_extractor.post_process_object_detection(
-            outputs, threshold=self.model_threshold, target_sizes=[(height, width)]
-        )[0]
-        # Transform a tensor in a list
-        labels = results["labels"].tolist()
-        boxes = results["boxes"].tolist()
-        scores = results["scores"].tolist()
-        return labels, boxes, scores, width, height"""
+                merge_cells_boxes.append(new_box)
+        return {"row_boxes": row_boxes, "row_scores": row_scores, "column_boxes": column_boxes, "column_scores": column_scores, "merged_cells_boxes": merge_cells_boxes}
 
     def get_table_structure(
         self,
@@ -923,25 +864,17 @@ class TableStructureParser(BaseModel):
             A dicitonary containing the rows a collumns ordered
         """
         page_for_zoom: Any = pdf[page_index]
-        pdf_size: List[float] = page_for_zoom.mediabox
         # Correct the tablle coordinates acording the the page size
         table_rect: fitz.Rect = fitz.Rect(corrected_table_coords[0], corrected_table_coords[1], corrected_table_coords[2], corrected_table_coords[3])
-        x_1 = corrected_table_coords[0]
-        y_1 = corrected_table_coords[1]
-        x_2 = corrected_table_coords[2]
-        y_2 = corrected_table_coords[3]
         # apply zoom to increase resolution
         mat: fitz.Matrix = fitz.Matrix(self.zoom, self.zoom)
         image: Any = page_for_zoom.get_pixmap(matrix=mat, clip=table_rect)
         image.save("image.png")
-        structure_dict: Dict[str, Any] = self.table_image_structure_tatr("image.png")
+        structure_dict: Dict[str, Any] = self.table_image_structure_tatr("image.png", corrected_table_coords, table_coords)
         rows: List[List[float]] = structure_dict["row_boxes"]
         collumns: List[List[float]] = structure_dict["column_boxes"]
         row_scores: List[float] = structure_dict["row_scores"]
         collumns_scores: List[float] = structure_dict["column_scores"]
-        print(("###########"))
-        print(len(rows))
-        print(len(collumns))
         if len(rows) > 0:
             supressed_rows: List[KeyboardInterrupt] = tf.image.non_max_suppression(
                 rows,
@@ -970,8 +903,6 @@ class TableStructureParser(BaseModel):
                 real_collumns.append(collumns[index])
         else:
             real_collumns = collumns
-        print(len(real_rows))
-        print(len(real_collumns))
         if "rows" in word_boxes.keys():
             word_rows: List[List[float]] = word_boxes["rows"]
         else:

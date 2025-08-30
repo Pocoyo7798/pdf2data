@@ -296,9 +296,8 @@ class Evaluator(BaseModel):
         results['entries'] = {}
         results['entries']["horizontal similarity"] = np.average(entries_ratio_list_h)
         results['entries']["vertical similarity"] = np.average(entries_ratio_list_v)
-        results_json = json.dumps(results, indent=4)
-        with open(self.eval_file_path, "w") as f:
-            f.write(results_json)
+        df = pd.DataFrame.from_dict(results, orient='index') # convert dict to dataframe
+        df.to_excel(self.eval_file_path, ".xlsx")
         
 
     def eval_table_detector(self) -> None:

@@ -31,6 +31,22 @@ from pdf2data.support import get_doc_list
     default=0.5,
     help="threshold of the table detection model",
 )
+
+@click.option(
+    "--ocr_model",
+    default=None,
+    help="model used to perform ocr",
+)
+@click.option(
+    "--word_detection_model",
+    default=None,
+    help="model used to detect words",
+)
+@click.option(
+    "--word_detection_model_threshold",
+    default=0.3,
+    help="threshold of the word detection model",
+)
 @click.option(
     "--extract_tables",
     default=True,
@@ -43,13 +59,18 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--correct_struct",
-    default=True,
+    default=False,
     help="True to to correct the table structure using the words position, False otherwise",
 )
 @click.option(
     "--table_zoom",
-    default=3,
+    default=1.5,
     help="zoom of the image containing the table",
+)
+@click.option(
+    "--cell_zoom",
+    default=1.0,
+    help="zoom of the image containing the word to detect",
 )
 @click.option(
     "--figure_zoom",
@@ -58,17 +79,17 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--x_table_corr",
-    default=0.005,
+    default=0.01,
     help="factor correct the table coordinates in the x axis",
 )
 @click.option(
     "--y_table_corr",
-    default=0.005,
+    default=0.01,
     help="factor correct the table coordinates in the y axis",
 )
 @click.option(
     "--iou_lines",
-    default=0.2,
+    default=0.5,
     help="iou value to supress collumns and rows",
 )
 @click.option(
@@ -83,12 +104,12 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--word_iou",
-    default=0.02,
+    default=0.00001,
     help="iou value to consider that a word is inside a specific table entry",
 )
 @click.option(
     "--struct_model",
-    default="microsoft/table-structure-recognition-v1.1-all",
+    default=None,
     help="table structure detection model threshold",
 )
 @click.option(
@@ -108,7 +129,7 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--contrast",
-    default=1.1,
+    default=1.0,
     help="contrast factor of the Table image",
 )
 @click.option(
@@ -118,7 +139,7 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--letter_ratio",
-    default=3.0,
+    default=4.0,
     help="minimum ratio between letter and ratio to consider a column as a row index or a row as a collumn header",
 )
 def block_extractor(
@@ -128,10 +149,14 @@ def block_extractor(
     table_model: str,
     layout_model_threshold: float,
     table_model_threshold: float,
+    ocr_model: str,
+    word_detection_model: str,
+    word_detection_model_threshold: float,
     extract_tables: bool,
     extract_figures: bool,
     correct_struct: bool,
     table_zoom: float,
+    cell_zoom: float,
     figure_zoom: float,
     x_table_corr: float,
     y_table_corr: float,
@@ -151,10 +176,14 @@ def block_extractor(
         os.mkdir(output_folder)
     file_list: List[str] = get_doc_list(input_folder, "pdf")
     extractor: BlockExtractor = BlockExtractor(
+        ocr_model=ocr_model,
+        word_detection_model=word_detection_model,
+        word_detection_threshold=word_detection_model_threshold,
         extract_tables=extract_tables,
         extract_figures=extract_figures,
         correct_struct=correct_struct,
         table_zoom=table_zoom,
+        cell_zoom=cell_zoom,
         figure_zoom=figure_zoom,
         x_table_corr=x_table_corr,
         y_table_corr=y_table_corr,
