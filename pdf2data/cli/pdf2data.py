@@ -67,27 +67,27 @@ from pdf2data.metadata import Metadata
 )
 @click.option(
     "--table_zoom",
-    default=1,
+    default=1.5,
     help="zoom of the image containing the table",
 )
 @click.option(
     "--figure_zoom",
-    default=1,
+    default=3,
     help="zoom of the figures extracted",
 )
 @click.option(
     "--x_table_corr",
-    default=0.02,
+    default=0.01,
     help="factor correct the table coordinates in the x axis",
 )
 @click.option(
     "--y_table_corr",
-    default=0.02,
+    default=0.01,
     help="factor correct the table coordinates in the y axis",
 )
 @click.option(
     "--iou_lines",
-    default=0.2,
+    default=0.5,
     help="iou value to supress collumns and rows",
 )
 @click.option(
@@ -102,7 +102,7 @@ from pdf2data.metadata import Metadata
 )
 @click.option(
     "--word_iou",
-    default=0.02,
+    default=0.00001,
     help="iou value to consider that a word is inside a specific table entry",
 )
 @click.option(
@@ -132,7 +132,7 @@ from pdf2data.metadata import Metadata
 )
 @click.option(
     "--letter_ratio",
-    default=3.0,
+    default=4.0,
     help="minimum ratio between letter and ratio to consider a column as a row index or a row as a collumn header",
 )
 def pdf2data(input_folder: str,
@@ -238,7 +238,7 @@ def pdf2data(input_folder: str,
         file_path = input_folder + "/" + file
         layout: Dict[str, Any] = mask.get_layout(file_path)
         text_doc = file_name + text_extension
-        text_path: str = f"{input_folder}/{text_doc}"
+        text_path: str = f"{output_folder}/{text_doc}"
         text_extractor: TextExtractor = TextExtractor(
                 input_file=text_path, output_folder=file_folder
             )

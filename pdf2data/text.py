@@ -124,6 +124,7 @@ class TextFileGenerator(BaseModel):
                 document_name + "." + file_format,
                 self.output_folder + "/" + document_name + "." + file_format,
             )
+        return self.output_folder + "/" + document_name + "." + file_format
 
 
 class TextExtractor(BaseModel):
