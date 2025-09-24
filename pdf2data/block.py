@@ -647,7 +647,12 @@ class Figure(BaseModel):
         # Get Image from the Rectangle
         image: Any = page.get_pixmap(matrix=mat, clip=image_rect)
         # Save as Tiff
-        image.pil_save(self.name, format="TIFF")
+        try:
+            image.pil_save(self.name, format="TIFF")
+        except SystemError:
+            new_image = Image.new('RGB', (400, 600))
+            new_image.save(self.name)
+            print(f"Figure {self.name} was no been able to be saved")
         return self.__dict__
 
 

@@ -41,27 +41,24 @@ def text_finder(input_folder: str, output_folder: str, keywords_file: str, word_
     if os.path.isdir(output_folder) is False:
         os.mkdir(output_folder)
     finder: TextFinder = TextFinder(keywords_file_path=keywords_file)
-    finder.model_post_init(None)
     if document_type == "full_document":
         doc_list: List[str] = get_doc_list(input_folder, "")
     else:
         doc_list: List[str] = get_doc_list(input_folder, "json")
+    results_path = f"{output_folder}/found_texts.txt"
+    name_path = f"{output_folder}/found_texts_doc_names.txt"
+    print(doc_list)
     for doc in doc_list:
         print(doc)
         if document_type == "full_document":
             text_path: str = f"{input_folder}/{doc}/{doc}_text.json"
-            metadata_path:  str = f"{input_folder}/{doc}/{doc}_metadata.json"
-            with open(metadata_path, "r") as f:
-                doi = json.load(f)["doi"]
         else:
             text_path: str = f"{input_folder}/{doc}"
-            doi = "No Information"
         results: Dict[str, Any] = finder.find(text_path, word_count_threshold, paragraph=find_paragraphs, section_header=find_section_headers, count_duplicates=count_duplicates)
         text_list = results["text"]
-        results_path = f"{output_folder}/{doc}_found_texts.txt"
-        with open(results_path, "a") as f:
-            f.write(doi + "\n")
         for text in text_list:
+            with open(name_path, "a") as f:
+                f.write(doc + "\n")
             with open(results_path, "a") as f:
                 f.write(text + "\n")
 

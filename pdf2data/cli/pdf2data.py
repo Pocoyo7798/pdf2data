@@ -5,6 +5,7 @@ import shutil
 
 import click
 
+import PyPDF2
 from pdf2data.block import BlockExtractor
 from pdf2data.mask import LayoutParser
 from pdf2data.support import get_doc_list
@@ -236,9 +237,13 @@ def pdf2data(input_folder: str,
         if os.path.isdir(file_folder) is False:
             os.mkdir(file_folder)
         file_path = input_folder + "/" + file
+        try:
+            pdf = PyPDF2.PdfReader(file_path)
+        except PyPDF2.errors.PdfReadError:
+            continue
         layout: Dict[str, Any] = mask.get_layout(file_path)
         text_doc = file_name + text_extension
-        text_path: str = f"{output_folder}/{text_doc}"
+        text_path: str = f"{input_folder}/{text_doc}"
         text_extractor: TextExtractor = TextExtractor(
                 input_file=text_path, output_folder=file_folder
             )

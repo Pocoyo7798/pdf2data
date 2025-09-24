@@ -30,16 +30,17 @@ def block_finder(input_folder: str, output_folder: str, keywords_file:str, gener
     if os.path.isdir(output_folder) is False:
         os.mkdir(output_folder)
     finder: BlockFinder = BlockFinder(keywords_file_path=keywords_file, generic_keywords_file_path=generic_file)
-    finder.model_post_init(None)
     doc_list: List[str] = get_doc_list(input_folder, "")
+    final_results_dict: Dict[str, Any] = {}
+    results_path = f"{output_folder}/found_blocks.json"
     for doc in doc_list:
         print(doc)
         blocks_path: str = f"{input_folder}/{doc}/{doc}_blocks.json"
         blocks = finder.find(blocks_path, tables=find_tables, figures=find_figures)
-        blocks_json = json.dumps(blocks, indent=4)
-        results_path = f"{output_folder}/{doc}_found_blocks.json"
-        with open(results_path, "w") as f:
-            f.write(blocks_json)
+        final_results_dict[doc] = blocks
+    result_json = json.dumps(final_results_dict, indent=4)
+    with open(results_path, "w") as f:
+        f.write(result_json)
 
 def main():
     block_finder()
