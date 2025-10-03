@@ -1386,7 +1386,7 @@ def outputs_to_objects(outputs: Any, img_size: tuple, labels: Dict[int, str]) ->
 
     return objects
 
-def correct_tre(word_list: List["str"]) -> re.Pattern[str]:
+def correct_tre(word_list: List["str"]) -> re.Pattern:
     tre: TRE = TRE(*word_list)
     regex = tre.regex()
     i = 0
