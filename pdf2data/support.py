@@ -5,6 +5,7 @@ from typing import Any, Container, Dict, List, Optional
 from Levenshtein import ratio
 import torch
 import re
+from bs4 import BeautifulSoup
 
 from pydantic import BaseModel, PrivateAttr
 import fitz
@@ -143,6 +144,44 @@ class Latex2Table(BaseModel):
                 final_table.append(table_line_final)
                 multicolumn_matrix.append(multicolumn_list)
         return self.correct_table(final_table, multicolumn_matrix)
+
+def html_table_to_list(html):
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+
+    matrix = []          # final output
+    rowspans = {}        # (row, col) → remaining rowspan cells
+
+    for row_idx, row in enumerate(table.find_all("tr")):
+        cols = []
+        col_idx = 0
+
+        # Fill in cells carried over by rowspan
+        while (row_idx, col_idx) in rowspans:
+            cols.append(rowspans[(row_idx, col_idx)])
+            del rowspans[(row_idx, col_idx)]
+            col_idx += 1
+
+        for cell in row.find_all(["td", "th"]):
+            value = cell.get_text(strip=True)
+            rowspan = int(cell.get("rowspan", 1))
+            colspan = int(cell.get("colspan", 1))
+
+            # Add cell and all colspan duplicates
+            for _ in range(colspan):
+                cols.append(value)
+
+            # Store rowspan duplicates for future rows
+            if rowspan > 1:
+                for rs in range(1, rowspan):
+                    for cs in range(colspan):
+                        rowspans[(row_idx + rs, col_idx + cs)] = value
+
+            col_idx += colspan
+
+        matrix.append(cols)
+
+    return matrix
 
 def find_term_in_list(reference: List[str], term: str) -> List[str]:
     """_summary_

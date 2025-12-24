@@ -178,9 +178,9 @@ class Evaluator(BaseModel):
         total_tp_table_row_indexes:int = 0
         total_fp_table_row_indexes: int = 0
         total_fn_table_row_indexes: int = 0
-        total_tp_table_collumn_headers: int = 0
-        total_fp_table_collumn_headers: int = 0
-        total_fn_table_collumn_headers: int = 0
+        total_tp_table_column_headers: int = 0
+        total_fp_table_column_headers: int = 0
+        total_fn_table_column_headers: int = 0
         total_tp_figure_boxes: int = 0
         total_fp_figure_boxes: int = 0
         total_fn_figure_boxes: int = 0
@@ -197,7 +197,7 @@ class Evaluator(BaseModel):
             with open(result_path, "r") as f:
                 document_blocks: dict = json.load(f)
             blocks: List[Any] = document_blocks["blocks"]
-            table_boxes, table_legends, table_pages, table_structure, table_row_indexes, table_collumn_headers, figure_boxes, figure_legends, figure_pages = get_block_info(blocks)
+            table_boxes, table_legends, table_pages, table_structure, table_row_indexes, table_column_headers, figure_boxes, figure_legends, figure_pages = get_block_info(blocks)
             tp_table_boxes: int = 0
             fp_table_boxes: int = len(table_boxes)
             fn_table_boxes: int = 0
@@ -236,8 +236,8 @@ class Evaluator(BaseModel):
                     tp_table_boxes = tp_table_boxes + 1
                     fp_table_boxes = fp_table_boxes - 1
                     legend = table_legends[index]
-                    collumn_headers = table_collumn_headers[index]
-                    ref_collumn_headers = block['collumn_headers']
+                    column_headers = table_column_headers[index]
+                    ref_column_headers = block['column_headers']
                     row_indexes = table_row_indexes[index]
                     ref_row_indexes = block['row_indexes']
                     structure = table_structure[index]
@@ -254,10 +254,10 @@ class Evaluator(BaseModel):
                     entries_ratio_list_h.append(entries_ratio_h)
                     entries_ratio_v = entries_similarity_vertical(ref_structure, structure)
                     entries_ratio_list_v.append(entries_ratio_v)
-                    collumn_evaluation = verify_lists(ref_collumn_headers, collumn_headers)
-                    total_tp_table_collumn_headers = total_tp_table_collumn_headers + collumn_evaluation['true_positives']
-                    total_fp_table_collumn_headers = total_fp_table_collumn_headers + collumn_evaluation['false_positives']
-                    total_fn_table_collumn_headers = total_fn_table_collumn_headers + collumn_evaluation['false_negatives']
+                    collumn_evaluation = verify_lists(ref_column_headers, column_headers)
+                    total_tp_table_column_headers = total_tp_table_column_headers + collumn_evaluation['true_positives']
+                    total_fp_table_column_headers = total_fp_table_column_headers + collumn_evaluation['false_positives']
+                    total_fn_table_column_headers = total_fn_table_column_headers + collumn_evaluation['false_negatives']
                     row_evaluation = verify_lists(ref_row_indexes, row_indexes)
                     total_tp_table_row_indexes = total_tp_table_row_indexes + row_evaluation['true_positives']
                     total_fp_table_row_indexes = total_fp_table_row_indexes + row_evaluation['false_positives']
@@ -289,7 +289,7 @@ class Evaluator(BaseModel):
         results['table_detection'] = calc_metrics(total_tp_table_boxes, total_fp_table_boxes, total_fn_table_boxes)
         results['figure_detection'] = calc_metrics(total_tp_figure_boxes, total_fp_figure_boxes, total_fn_figure_boxes)
         results['row_indexes'] = calc_metrics(total_tp_table_row_indexes, total_fp_table_row_indexes, total_fn_table_row_indexes)
-        results['collumn_headers'] = calc_metrics(total_tp_table_collumn_headers, total_fp_table_collumn_headers, total_fn_table_collumn_headers)
+        results['column_headers'] = calc_metrics(total_tp_table_column_headers, total_fp_table_column_headers, total_fn_table_column_headers)
         results['legends'] = calc_metrics(total_tp_block_legends, total_fp_block_legends, total_fn_block_legends)
         results['table_structure'] = calc_metrics(total_tp_table_structure, total_fp_table_structure, total_fn_table_structure)
         results['table_structure']['accuracy'] = structure_accuracy
