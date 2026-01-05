@@ -38,6 +38,12 @@ class Figure(BaseModel):
     page: Optional[int] = None    
     box: Optional[List[float]] = None
 
+class Text(BaseModel):
+    content: Optional[str] = None
+    type: str = "paragraph" #paragraphs, titles, equations
+    page: Optional[int] = None
+    box: Optional[List[float]] = None
+
 class Pipeline(BaseModel):
     input_folder: str
     output_folder: str
@@ -161,6 +167,17 @@ class MinerU(Pipeline):
         figure_object.filepath = os.path.join(image_folder, f"{doc_name}_images", f"Figure{number}.png")
         return figure_object.model_dump()
     
+    def generate_text_block(self, 
+                             initial_block: Dict[str, Any],
+                             doc_name: str) -> Dict[str, Any]:
+        text_object = Text()
+        text_object.content = initial_block.get("content", "")
+        if initial_block["type"] == "text":
+            text_object.type = "paragraph"
+        text_object.page = initial_block["page_idx"] + 1
+        text_object.box = initial_block["bbox"]
+        return text_object.model_dump()
+    
     def generate_blocks_from_folder(self) -> None:
         if self.folder_list == []:
             raise ValueError("Folder list is empty. Please run extract_pdfs() first.")
@@ -195,7 +212,12 @@ class MinerU(Pipeline):
                         os.path.join(self.input_folder, folder),
                     )
                     blocks_info["blocks"].append(figure_block)
+                elif content["type"] == "text":
+                    text_block = self.generate_text_block(
+                        content,
+                        folder,
+                    )
+                    blocks_info["blocks"].append(text_block)
             blocks_info["amount"] = table_amount + figure_amount
             with open(os.path.join(self.output_folder, f"{folder}blocks.json"), "w") as f:
                 json.dump(blocks_info, f, indent=4)
-            
