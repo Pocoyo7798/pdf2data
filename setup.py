@@ -14,7 +14,7 @@ requirements = [
     "Click<=8.1.7",
     "numpy<=2.1.3",
     "pydantic<=2.11.7",
-    "beautifulsoup4<=4.13.4",
+    "beautifulsoup4<=4.13.5",
     "pdf2doi<=1.7",
     "bibcure<=0.3.0",
     "importlib_resources<=6.5.2",
@@ -27,8 +27,8 @@ requirements = [
     "levenshtein<=0.27.1",
     "trieregex<=1.0.0",
     "doclayout_yolo<=0.0.4",
-    "lmdeploy<=0.9.1",
-    "struct_eqtable<=0.3.3"
+    "struct_eqtable<=0.3.3",
+    "pdfminer.six==20250506"
 ]
 
 test_requirements = [
