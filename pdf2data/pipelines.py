@@ -16,6 +16,8 @@ import tensorflow as tf
 from pydantic import BaseModel, PrivateAttr
 import easyocr
 from pdf2data.support import html_table_to_list
+from docling.document_converter import DocumentConverter
+
 
 class Table(BaseModel):
     type: str = "Table"
@@ -128,6 +130,7 @@ class MinerU(Pipeline):
     _folder_list: List[str] = PrivateAttr(default=[])
     
     def extract_pdfs(self) -> None:
+        print(os.listdir(self.pdf_copies_folder))
         subprocess.run(
             [
                 "mineru",
@@ -289,7 +292,7 @@ class MinerU(Pipeline):
                 file_path = os.path.join(self.input_folder, file_name)
                 file_size = os.path.getsize(file_path) / 1024 / 1024
                 print(total_size)
-                if total_size + file_size <= 10:  # 10 MB in bytes
+                if total_size + file_size <= 15:  # 15 MB in bytes
                     new_file_path = os.path.join(self.pdf_copies_folder, file_name)
                     shutil.copy(file_path, new_file_path)
                     total_size += file_size
@@ -304,5 +307,89 @@ class MinerU(Pipeline):
                     shutil.copy(file_path, new_file_path)
                     total_size += file_size
         self.extract_pdfs()
+        if os.path.exists(self.pdf_copies_folder):
+                    shutil.rmtree(self.pdf_copies_folder)
         self._folder_list = os.listdir(self.output_folder)
         self.generate_blocks_from_folder()
+
+
+class Docling(Pipeline):
+    _converter: DocumentConverter = PrivateAttr(default=DocumentConverter())
+    _table_dict: Dict[str, Any] = PrivateAttr(default={})
+    _text_dict: Dict[str, Any] = PrivateAttr(default={})
+    _figure_dict: Dict[str, Any] = PrivateAttr(default={})
+
+    def generate_blocks_dicts(self, document_dict: Dict[str, Any]) -> None:
+        text_list = document_dict.get("texts", [])
+        table_list = document_dict.get("tables", [])
+        figure_list = document_dict.get("pictures", [])
+        text_dict = {}
+        table_dict = {}
+        figure_dict = {}
+        for text in text_list:
+            ref = text["$ref"]
+            text_dict[ref] = text
+        for table in table_list:
+            ref = table["$ref"]
+            table_dict[ref] = table
+        for figure in figure_list:
+            ref = figure["$ref"]
+            figure_dict[ref] = figure
+        self._text_dict = text_dict
+        self._table_dict = table_dict
+        self._figure_dict = figure_dict
+
+    def generate_formula_block(self, formula_dict: Dict[str, Any]) -> Dict[str, Any]:
+        pass
+
+    def generate_text_block(self, 
+                             ref: str) -> Dict[str, Any]:
+        text_dict: Dict[str, Any] = self._text_dict.get(ref, {})
+        text_object = Text()
+        text_object.content = text_dict.get("orig", "")
+        if text_dict.get("type", "") == "text":
+            text_object.type = "paragraph"
+        elif text_dict.get("type", "") == "section_header":
+            text_object.type = "section_header"
+        elif text_dict.get("type", "") == "formula":
+            return self.generate_formula_block(text_dict)
+        text_object.page = text_dict["prov"]["page_no"]
+        
+
+    def generate_blocks_from_dict(self, document_dict: Dict[str, Any]) -> None:
+        document_body: List[Dict] = document_dict.get("body", [])
+        blocks_info: Dict[str, List[Dict[str, Any]]] = {"blocks": []}
+        for content in document_body:
+            reference = content["$ref"]
+            block_data: Dict[str, Any] = {}
+            if "texts" in reference and self.extract_text:
+                text_block = self.generate_text_block(
+                        reference
+                    )
+                block_data = text_block
+            elif "pictures" in reference and self.extract_figures:
+                # Process figure block
+                pass  # Implement figure processing logic here
+            elif "tables" in reference and self.extract_tables:
+                # Process text block
+                pass  # Implement text processing logic here
+            if block_data != {}:
+                blocks_info["blocks"].append(block_data)
+    def pdf_transform(self) -> None:
+        files_list = os.listdir(self.input_folder)
+        for file in files_list:
+            if file.endswith('.pdf'):
+                file_name = os.path.splitext(file)[0]
+                file_path = os.path.join(self.input_folder, file)
+                results = self._converter.convert(file_path)
+                document_dict = results.document.export_to_dict()
+                if self.extract_tables or self.extract_figures or self.extract_text:
+                    results_folder = os.path.join(self.output_folder, file_name)
+                    image_folder_path = os.path.join(results_folder, f"{file_name}_images")
+                else:
+                    results_folder = self.output_folder
+                image_folder_path = os.path.join(results_folder, f"{file_name}_images")
+                if not os.path.exists(image_folder_path):
+                    os.makedirs(image_folder_path)
+                self.generate_blocks_dicts(document_dict)
+                self.generate_blocks_from_dict(document_dict)
