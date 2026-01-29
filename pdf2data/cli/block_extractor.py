@@ -3,10 +3,10 @@ from typing import List, Optional
 
 import click
 
-from pdf2data.block import BlockExtractor
-from pdf2data.mask import LayoutParser
+#from pdf2data.block import BlockExtractor
+#from pdf2data.mask import LayoutParser
 from pdf2data.support import get_doc_list
-from pdf2data.pipelines import MinerU
+from pdf2data.pipelines import MinerU, Docling
 
 
 @click.command()
@@ -182,7 +182,7 @@ def block_extractor(
     if pipeline == "NotDefined":
         if os.path.isdir(output_folder) is False:
             os.mkdir(output_folder)
-        file_list: List[str] = get_doc_list(input_folder, "pdf")
+        """file_list: List[str] = get_doc_list(input_folder, "pdf")
         extractor: BlockExtractor = BlockExtractor(
             ocr_model=ocr_model,
             word_detection_model=word_detection_model,
@@ -222,7 +222,7 @@ def block_extractor(
             file_path: str = input_folder + "/" + file
             layout = mask.get_layout(file_path)
             extractor.get_blocks(file_path, layout, output_folder)
-            doc_number += 1
+            doc_number += 1"""
     elif pipeline == "MinerU":
         miner_pipeline: MinerU = MinerU(
             input_folder=input_folder,
@@ -230,6 +230,14 @@ def block_extractor(
             extract_equations=False,
             extract_text=False)
         miner_pipeline.pdf_transform()
+    elif pipeline == "Docling":
+        docling_pipeline: Docling = Docling(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_equations=False,
+            extract_text=False)
+        docling_pipeline.pdf_transform()
+    
             
 
 def main():

@@ -11,24 +11,30 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "Click<=8.1.7",
-    "numpy<=2.1.3",
-    "pydantic<=2.11.7",
-    "beautifulsoup4<=4.13.5",
-    "pdf2doi<=1.7",
-    "bibcure<=0.3.0",
-    "importlib_resources<=6.5.2",
-    "lxml<=6.0.0",
-    "transformers<=4.53.1",
-    "tensorflow<=2.19.0",
-    "cython<=3.0.8",
-    "effdet<=0.3.0",
-    "pillow<=11.3.0",
-    "levenshtein<=0.27.1",
+    "Click<=8.1.8",
+    "PyMuPDF<=1.26.7",
+    "pylatexenc<=2.10",
+    "PyPDF<=3.0.1",
+    #"numpy<=2.1.3",
+    #"pydantic<=2.11.7",
+    #"beautifulsoup4<=4.13.5",
+    #"pdf2doi<=1.7",
+    #"bibcure<=0.3.0",
+    #"importlib_resources<=6.5.2",
+    #"lxml<=6.0.0",
+    #"transformers<=4.53.1",
+    #"tensorflow<=2.20.0",
+    #"cython<=3.0.8",
+    #"effdet<=0.3.0",
+    #"pillow<=11.3.0",
+    "Levenshtein<= 0.27.3",
     "trieregex<=1.0.0",
-    "doclayout_yolo<=0.0.4",
-    "struct_eqtable<=0.3.3",
-    "pdfminer.six==20250506"
+    #"doclayout_yolo<=0.0.4",
+    #"struct_eqtable<=0.3.3",
+    #"pdfminer.six==20250506"
+    #"easyocr<=1.7.2",
+    #"docling<=2.68.0",
+    "bibtexparser<=1.4.3"
 ]
 
 test_requirements = [

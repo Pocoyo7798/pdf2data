@@ -146,6 +146,8 @@ class Latex2Table(BaseModel):
         return self.correct_table(final_table, multicolumn_matrix)
 
 def html_table_to_list(html):
+    if html == "":
+        return [[]]
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table")
 

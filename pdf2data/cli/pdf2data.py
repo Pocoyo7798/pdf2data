@@ -2,20 +2,27 @@ import os
 from typing import Any, Dict, List
 import json
 import shutil
+import time
 
 import click
 
 import PyPDF2
-from pdf2data.block import BlockExtractor
-from pdf2data.mask import LayoutParser
-from pdf2data.support import get_doc_list
-from pdf2data.text import TextExtractor, TextFileGenerator
+#from pdf2data.block import BlockExtractor
+#from pdf2data.mask import LayoutParser
+#from pdf2data.support import get_doc_list
+#from pdf2data.text import TextExtractor, TextFileGenerator
 from pdf2data.references import References
 from pdf2data.metadata import Metadata
+from pdf2data.pipelines import MinerU, Docling
 
 @click.command()
 @click.argument("input_folder", type=str)
 @click.argument("output_folder", type=str)
+@click.option(
+    "--pipeline",
+    default="MinerU", #NotDefined, MinerU
+    help="Define the pipeline to be used",
+)
 @click.option(
     "--layout_model",
     default="DocLayout-YOLO-DocStructBench",
@@ -138,6 +145,7 @@ from pdf2data.metadata import Metadata
 )
 def pdf2data(input_folder: str,
     output_folder: str,
+    pipeline: str,
     layout_model: str,
     table_model: str,
     layout_model_threshold: float,
@@ -163,120 +171,163 @@ def pdf2data(input_folder: str,
     device: str,
     letter_ratio: float,
 ) -> None:
-    if os.path.isdir(output_folder) is False:
-        os.mkdir(output_folder)
-    file_list: List[str] = get_doc_list(input_folder, "pdf")
-    possible_types = set(["layoutparser", "cermine", "minersix"])
-    if text_extractor_type not in possible_types:
-        raise AttributeError(
-            f"{type} is not a available type, try one of the following: {possible_types}"
-        )
-    if text_extractor_type == "layoutparser":
-        text_extension: str = ".pdf"
-    else:
-        generator: TextFileGenerator = TextFileGenerator(
-            input_folder=input_folder, output_folder=output_folder
-        )
-        generator.model_post_init(None)
-        if text_extractor_type == "cermine":
-            generator.pdf_to_cermxml()
-            text_extension = ".cermxml"
-        elif text_extractor_type == "minersix":
-            generator.pdf_to_miner("txt")
-            text_extension = ".txt"
-    if reference_extractor_type == "anystyle":
-        reference_extension: str = ".pdf"
-    elif reference_extractor_type == "cermine":
-        if text_extractor_type != "cermine":
-            raise ValueError("Can only use reference_extractor as 'cermine' if the text_extrator is 'cermine'")
-        else:
-            reference_extension: str = ".cermxml"
-    if metadata_extractor_type == "pdf2doi":
-        metadata_extension: str = ".pdf"
-    elif metadata_extractor_type == "cermine":
-        if text_extractor_type != "cermine":
-            raise ValueError("Can only use metadata_extractor as 'cermine' if the text_extrator is 'cermine'")
-        else:
-            metadata_extension: str = ".cermxml"
-    extractor: BlockExtractor = BlockExtractor(
-        extract_tables=extract_tables,
-        extract_figures=extract_figures,
-        correct_struct=correct_struct,
-        table_zoom=table_zoom,
-        figure_zoom=figure_zoom,
-        x_table_corr=x_table_corr,
-        y_table_corr=y_table_corr,
-        iou_lines=iou_lines,
-        iou_struct=iou_struct,
-        word_factor=word_factor,
-        word_iou=word_iou,
-        struct_model_threshold=struct_model_threshold,
-        reconstructor_type=reconstructor_type,
-        brightness=brightness,
-        contrast=contrast,
-        letter_ratio=letter_ratio
-    )
-    extractor.model_post_init(None)
-    mask: LayoutParser = LayoutParser(
-        model=layout_model,
-        model_threshold=layout_model_threshold,
-        table_model=table_model,
-        table_model_threshold=table_model_threshold,
-        device_type=device
-    )
-    mask.model_post_init(None)
-    total_docs: int = len(file_list)
-    doc_number: int = 1
-    for file in file_list:
-        print(f'{doc_number}//{total_docs} processed')
-        print(file)
-        doc_number += 1
-        file_name = os.path.splitext(file)[0]
-        file_folder = output_folder + "/" + file_name
-
-        if os.path.isdir(file_folder) is False:
-            os.mkdir(file_folder)
-        file_path = input_folder + "/" + file
-        try:
-            pdf = PyPDF2.PdfReader(file_path)
-        except PyPDF2.errors.PdfReadError:
-            continue
-        layout: Dict[str, Any] = mask.get_layout(file_path)
-        text_doc = file_name + text_extension
-        text_path: str = f"{input_folder}/{text_doc}"
-        text_extractor: TextExtractor = TextExtractor(
-                input_file=text_path, output_folder=file_folder
+    start_time = time.time()
+    if pipeline == "NotDefined":
+        if os.path.isdir(output_folder) is False:
+            os.mkdir(output_folder)
+        """file_list: List[str] = get_doc_list(input_folder, "pdf")
+        possible_types = set(["layoutparser", "cermine", "minersix"])
+        if text_extractor_type not in possible_types:
+            raise AttributeError(
+                f"{type} is not a available type, try one of the following: {possible_types}"
             )
         if text_extractor_type == "layoutparser":
-            text_extractor.extract_layoutparser(f"{file_name}_text", layout)
+            text_extension: str = ".pdf"
         else:
+            generator: TextFileGenerator = TextFileGenerator(
+                input_folder=input_folder, output_folder=output_folder
+            )
+            generator.model_post_init(None)
             if text_extractor_type == "cermine":
-                text_extractor.extract_cermine(f"{file_name}_text")
+                generator.pdf_to_cermxml()
+                text_extension = ".cermxml"
             elif text_extractor_type == "minersix":
-                text_extractor.extract_txt(f"{file_name}_text")
-        reference_path = input_folder + "/" + file_name + reference_extension
-        references: References = References(
-            file_path=reference_path, output_folder=file_folder
+                generator.pdf_to_miner("txt")
+                text_extension = ".txt"
+        if reference_extractor_type == "anystyle":
+            reference_extension: str = ".pdf"
+        elif reference_extractor_type == "cermine":
+            if text_extractor_type != "cermine":
+                raise ValueError("Can only use reference_extractor as 'cermine' if the text_extrator is 'cermine'")
+            else:
+                reference_extension: str = ".cermxml"
+        if metadata_extractor_type == "pdf2doi":
+            metadata_extension: str = ".pdf"
+        elif metadata_extractor_type == "cermine":
+            if text_extractor_type != "cermine":
+                raise ValueError("Can only use metadata_extractor as 'cermine' if the text_extrator is 'cermine'")
+            else:
+                metadata_extension: str = ".cermxml"
+        extractor: BlockExtractor = BlockExtractor(
+            extract_tables=extract_tables,
+            extract_figures=extract_figures,
+            correct_struct=correct_struct,
+            table_zoom=table_zoom,
+            figure_zoom=figure_zoom,
+            x_table_corr=x_table_corr,
+            y_table_corr=y_table_corr,
+            iou_lines=iou_lines,
+            iou_struct=iou_struct,
+            word_factor=word_factor,
+            word_iou=word_iou,
+            struct_model_threshold=struct_model_threshold,
+            reconstructor_type=reconstructor_type,
+            brightness=brightness,
+            contrast=contrast,
+            letter_ratio=letter_ratio
         )
-        references.generate_reference_file()
-        metadata_path = input_folder + "/" + file_name + metadata_extension
-        metadata: Metadata = Metadata(file_path=metadata_path)
-        metadata.update()
-        doi: str = metadata.doi
-        metadata_dict: Dict[str, Any] = metadata.__dict__
-        del metadata_dict["file_path"]
-        json_metadata = json.dumps(metadata_dict, indent=4)
-        with open(f"{file_folder}/{file_name}_metadata.json", "w") as j:
-            # convert the dictionary into a json variable
-            j.write(json_metadata)
-        extractor.get_blocks(file_path, layout, file_folder, doi=doi)
-        if text_extractor_type in set(["cermine", "minersix"]):
+        extractor.model_post_init(None)
+        mask: LayoutParser = LayoutParser(
+            model=layout_model,
+            model_threshold=layout_model_threshold,
+            table_model=table_model,
+            table_model_threshold=table_model_threshold,
+            device_type=device
+        )
+        mask.model_post_init(None)
+        total_docs: int = len(file_list)
+        doc_number: int = 1
+        for file in file_list:
+            print(f'{doc_number}//{total_docs} processed')
+            print(file)
+            doc_number += 1
+            file_name = os.path.splitext(file)[0]
+            file_folder = output_folder + "/" + file_name
+
+            if os.path.isdir(file_folder) is False:
+                os.mkdir(file_folder)
+            file_path = input_folder + "/" + file
+            try:
+                pdf = PyPDF2.PdfReader(file_path)
+            except PyPDF2.errors.PdfReadError:
+                continue
+            layout: Dict[str, Any] = mask.get_layout(file_path)
+            text_doc = file_name + text_extension
+            text_path: str = f"{input_folder}/{text_doc}"
+            text_extractor: TextExtractor = TextExtractor(
+                    input_file=text_path, output_folder=file_folder
+                )
+            if text_extractor_type == "layoutparser":
+                text_extractor.extract_layoutparser(f"{file_name}_text", layout)
+            else:
+                if text_extractor_type == "cermine":
+                    text_extractor.extract_cermine(f"{file_name}_text")
+                elif text_extractor_type == "minersix":
+                    text_extractor.extract_txt(f"{file_name}_text")
+            reference_path = input_folder + "/" + file_name + reference_extension
+            references: References = References(
+                file_path=reference_path, output_folder=file_folder
+            )
+            references.generate_reference_file()
+            metadata_path = input_folder + "/" + file_name + metadata_extension
+            metadata: Metadata = Metadata(file_path=metadata_path)
+            metadata.update()
+            doi: str = metadata.doi
+            metadata_dict: Dict[str, Any] = metadata.__dict__
+            del metadata_dict["file_path"]
+            json_metadata = json.dumps(metadata_dict, indent=4)
+            with open(f"{file_folder}/{file_name}_metadata.json", "w") as j:
+                # convert the dictionary into a json variable
+                j.write(json_metadata)
+            extractor.get_blocks(file_path, layout, file_folder, doi=doi)
+            if text_extractor_type in set(["cermine", "minersix"]):
+                shutil.move(
+                    text_path, file_folder + "/" + file_name + text_extension
+                )
             shutil.move(
-                text_path, file_folder + "/" + file_name + text_extension
-            )
-        shutil.move(
-                file_path, file_folder + "/" + file
-            )
+                    file_path, file_folder + "/" + file
+                )"""
+    elif pipeline == "MinerU":
+        miner_pipeline: MinerU = MinerU(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_references=True)
+        miner_pipeline.pdf_transform()
+    elif pipeline == "Docling":
+        docling_pipeline: Docling = Docling(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_references=True)
+        docling_pipeline.pdf_transform()
+    document_extraction_time = time.time() - start_time / 60
+    folders_list = os.listdir(output_folder)
+    number = 1
+    for folder in folders_list:
+        print(f"{number} // {len(folders_list)} processed")
+        print(folder)
+        pdf_file_path = input_folder + "/" + folder + ".pdf"
+        file_folder = output_folder + "/" + folder
+        txt_file_path = file_folder + "/" + folder + "_references.txt"
+        with open(file_folder + "/" + folder + "_content.json", "r") as f:
+            content_dict = json.load(f)
+        reference_parser =References(
+            file_path=txt_file_path, output_folder=file_folder
+        )
+        content_dict["references"] = reference_parser.generate_reference_list()
+        os.remove(txt_file_path)
+        metadata: Metadata = Metadata(file_path=pdf_file_path)
+        metadata.update()
+        metadata_dict: Dict[str, Any] = metadata.__dict__
+        content_dict["metadata"] = metadata_dict
+        new_content_dict = {"metadata": content_dict["metadata"]}
+        new_content_dict.update(content_dict)
+        content_json = json.dumps(new_content_dict, indent=4)
+        with open(file_folder + "/" + folder + "_content.json", "w") as f:
+            f.write(content_json)
+    full_time = time.time() - start_time / 60
+    extraction_metadata_dict = {"pipeline": pipeline, "document_extraction_time": document_extraction_time, "full_time": full_time}
+    with open(output_folder + "/extraction_metadata.json", "w") as f:
+        f.write(json.dumps(extraction_metadata_dict, indent=4))
 
 def main():
     pdf2data()
