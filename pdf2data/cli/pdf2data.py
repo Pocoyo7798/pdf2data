@@ -13,7 +13,6 @@ import PyPDF2
 #from pdf2data.text import TextExtractor, TextFileGenerator
 from pdf2data.references import References
 from pdf2data.metadata import Metadata
-from pdf2data.pipelines import MinerU, Docling
 
 @click.command()
 @click.argument("input_folder", type=str)
@@ -288,12 +287,14 @@ def pdf2data(input_folder: str,
                     file_path, file_folder + "/" + file
                 )"""
     elif pipeline == "MinerU":
+        from pdf2data.mineru import MinerU
         miner_pipeline: MinerU = MinerU(
             input_folder=input_folder,
             output_folder=output_folder,
             extract_references=True)
         miner_pipeline.pdf_transform()
     elif pipeline == "Docling":
+        from pdf2data.docling import Docling
         docling_pipeline: Docling = Docling(
             input_folder=input_folder,
             output_folder=output_folder,
