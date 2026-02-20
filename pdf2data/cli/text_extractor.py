@@ -4,8 +4,7 @@ from typing import Any, Dict, List, Optional
 import click
 
 #from pdf2data.mask import LayoutParser
-from pdf2data.pipelines import MinerU, Docling, Paddle
-from pdf2data.support import get_doc_list
+#from pdf2data.support import get_doc_list
 #from pdf2data.text import TextExtractor, TextFileGenerator
 
 
@@ -14,7 +13,7 @@ from pdf2data.support import get_doc_list
 @click.argument("output_folder", type=str)
 @click.option(
     "--pipeline",
-    default="MinerU", #NotDefined, MinerU
+    default="MinerU", #NotDefined, MinerU, Docling, PaddlePPStructure
     help="Define the pipeline to be used",
 )
 @click.option(
@@ -76,6 +75,7 @@ def text_extractor(input_folder: str, output_folder: Optional[str], pipeline: st
                 elif type == "minersix":
                     extractor.extract_txt(f"{file_name}_text")"""
     elif pipeline == "MinerU":
+        from pdf2data.mineru import MinerU
         miner_pipeline: MinerU = MinerU(
             input_folder=input_folder,
             output_folder=output_folder,
@@ -83,14 +83,16 @@ def text_extractor(input_folder: str, output_folder: Optional[str], pipeline: st
             extract_figures=False)
         miner_pipeline.pdf_transform()
     elif pipeline == "Docling":
+        from pdf2data.docling import Docling
         docling_pipeline: Docling = Docling(
             input_folder=input_folder,
             output_folder=output_folder,
             extract_tables=False,
             extract_figures=False)
         docling_pipeline.pdf_transform()
-    elif pipeline == "Paddle":
-        paddle_pipeline: Paddle = Paddle(
+    elif pipeline == "PaddlePPStructure":
+        from pdf2data.padle_ppstructure import PaddlePPStructure
+        paddle_pipeline: PaddlePPStructure = PaddlePPStructure(
             input_folder=input_folder,
             output_folder=output_folder,
             extract_tables=False,

@@ -4,9 +4,8 @@ from typing import Any, Dict, List, Optional
 from pylatexenc.latex2text import LatexNodes2Text
 
 import fitz
-from sympy import content
-import tensorflow as tf
 from pydantic import BaseModel, PrivateAttr
+from bs4 import BeautifulSoup
 
 
 class Table(BaseModel):
@@ -117,14 +116,20 @@ class Pipeline(BaseModel):
                     row_indexes.append(collumn_number)
             return row_indexes
     
-    def snap_figure(self, image_folder_path: str, page, file_path:str, box: List[float], number: int, doc_name: str, block_type) -> Dict[str, Any]:
+    def snap_figure(self, image_folder_path: str, page, file_path:str, box: List[float], number: int, doc_name: str, block_type, page_size: Optional[tuple] = None) -> Dict[str, Any]:
         # Open the PDF and extract the formula region
         pdf_document = fitz.open(file_path)
         page = pdf_document[page - 1]  # Pages are 0-indexed in fitz
-        
-        # Create a rectangle from the box coordinates [l, t, r, b]
-        rect = fitz.Rect(box[0], box[1], 
-                        box[2], box[3])
+        if page_size is not None:
+            page_width, page_height = page_size
+            real_page_rect = page.rect
+            real_width = real_page_rect.width
+            real_height = real_page_rect.height
+            rect = fitz.Rect(box[0] * real_width / page_width, box[1] * real_height / page_height,
+                            box[2] * real_width / page_width, box[3] * real_height / page_height)
+        else:
+            rect = fitz.Rect(box[0], box[1], 
+                            box[2], box[3])
         
         # Normalize and clip the rectangle to page bounds
         rect.normalize()  # Ensures coordinates are in correct order
@@ -156,4 +161,43 @@ class Pipeline(BaseModel):
             i += 1
             corrected_table.append(row)
         return corrected_table
+    def html_table_to_list(self, html):
+        if html == "":
+            return [[]]
+        soup = BeautifulSoup(html, "html.parser")
+        table = soup.find("table")
+
+        matrix = []          # final output
+        rowspans = {}        # (row, col) → remaining rowspan cells
+
+        for row_idx, row in enumerate(table.find_all("tr")):
+            cols = []
+            col_idx = 0
+
+            # Fill in cells carried over by rowspan
+            while (row_idx, col_idx) in rowspans:
+                cols.append(rowspans[(row_idx, col_idx)])
+                del rowspans[(row_idx, col_idx)]
+                col_idx += 1
+
+            for cell in row.find_all(["td", "th"]):
+                value = cell.get_text(strip=True)
+                rowspan = int(cell.get("rowspan", 1))
+                colspan = int(cell.get("colspan", 1))
+
+                # Add cell and all colspan duplicates
+                for _ in range(colspan):
+                    cols.append(value)
+
+                # Store rowspan duplicates for future rows
+                if rowspan > 1:
+                    for rs in range(1, rowspan):
+                        for cs in range(colspan):
+                            rowspans[(row_idx + rs, col_idx + cs)] = value
+
+                col_idx += colspan
+
+            matrix.append(cols)
+
+        return matrix
 # -*- coding: utf-8 -*-

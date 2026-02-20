@@ -47,7 +47,7 @@ class MinerU(Pipeline):
         table_object.number = number
         table_object.caption = self.generate_text(content["table_caption"])
         try:
-            table_object.block = html_table_to_list(content["html"])
+            table_object.block = self.html_table_to_list(content["html"])
         except KeyError:
             return None
         table_object.block = self.correct_table_structure(table_object.block)

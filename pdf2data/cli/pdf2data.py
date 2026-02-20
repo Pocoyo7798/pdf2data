@@ -1,12 +1,12 @@
 import os
 from typing import Any, Dict, List
 import json
-import shutil
+#import shutil
 import time
 
 import click
 
-import PyPDF2
+#import PyPDF2
 #from pdf2data.block import BlockExtractor
 #from pdf2data.mask import LayoutParser
 #from pdf2data.support import get_doc_list
@@ -300,6 +300,13 @@ def pdf2data(input_folder: str,
             output_folder=output_folder,
             extract_references=True)
         docling_pipeline.pdf_transform()
+    elif pipeline == "PaddlePPStructure":
+        from pdf2data.padle_ppstructure import PaddlePPStructure
+        paddle_pipeline: PaddlePPStructure = PaddlePPStructure(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_references=True)
+        paddle_pipeline.pdf_transform()
     document_extraction_time = time.time() - start_time / 60
     folders_list = os.listdir(output_folder)
     number = 1

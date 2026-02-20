@@ -5,8 +5,7 @@ import click
 
 #from pdf2data.block import BlockExtractor
 #from pdf2data.mask import LayoutParser
-from pdf2data.support import get_doc_list
-from pdf2data.pipelines import MinerU, Docling
+#from pdf2data.support import get_doc_list
 
 
 @click.command()
@@ -224,6 +223,7 @@ def block_extractor(
             extractor.get_blocks(file_path, layout, output_folder)
             doc_number += 1"""
     elif pipeline == "MinerU":
+        from pdf2data.mineru import MinerU
         miner_pipeline: MinerU = MinerU(
             input_folder=input_folder,
             output_folder=output_folder,
@@ -231,12 +231,22 @@ def block_extractor(
             extract_text=False)
         miner_pipeline.pdf_transform()
     elif pipeline == "Docling":
+        from pdf2data.docling import Docling
         docling_pipeline: Docling = Docling(
             input_folder=input_folder,
             output_folder=output_folder,
             extract_equations=False,
             extract_text=False)
         docling_pipeline.pdf_transform()
+    elif pipeline == "PaddlePPStructure":
+        from pdf2data.padle_ppstructure import PaddlePPStructure
+        paddle_pipeline: PaddlePPStructure = PaddlePPStructure(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_equations=False,
+            extract_text=False)
+        paddle_pipeline.pdf_transform()
+    
     
             
 

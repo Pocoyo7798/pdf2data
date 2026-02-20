@@ -1,14 +1,10 @@
-import json
+
 import os
-import shutil
 import subprocess
-from typing import Any, Dict, List
 
 from bs4 import BeautifulSoup as bs
 from pydantic import BaseModel
 import ast
-
-from pdf2data.support import find_authors_cerm, find_term_in_list
 
 
 class References(BaseModel):

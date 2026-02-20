@@ -4,10 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import bibtexparser
 import pdf2doi
-from bs4 import BeautifulSoup as bs
 from pydantic import BaseModel
-
-from pdf2data.support import find_term_in_list, list_into_bs_format
 
 
 class Metadata(BaseModel):
@@ -19,48 +16,6 @@ class Metadata(BaseModel):
     year: Optional[str] = None
     journal: Optional[str] = None
     publisher: Optional[str] = None
-
-    def get_cerm(self) -> None:
-        """Updates a metadata class object from a .cermxml file
-
-        Raises
-        ------
-        AttributeError
-            The file path does not refer to a .cermxml file
-        """
-        with open(self.file_path, "r") as file:
-            content = file.readlines()
-        extension = os.path.splitext(self.file_path)[1]
-        if extension != ".cermxml":
-            raise AttributeError(
-                f"A .cermxml file should be provided instead of a .{extension} file to use this method"
-            )
-        content: str = "".join(content)
-        bs_content: Any = bs(content, "lxml")
-        article_metadata: List[str] = bs_content.find_all("article-meta")
-        # Convert the list with bs4 objects into a single bs4 object
-        article_metadata: Any = list_into_bs_format(article_metadata)
-        journal_metadata: List[str] = bs_content.find_all("journal-meta")
-        journal_metadata: Any = list_into_bs_format(journal_metadata)
-        title: List[str] = find_term_in_list(article_metadata, "article-title")
-        doi: List[str] = find_term_in_list(article_metadata, "article-id")
-        authors: List[str] = find_term_in_list(article_metadata, "string-name")
-        keywords: List[str] = find_term_in_list(article_metadata, "kwd")
-        pub_date: List[str] = article_metadata.find_all("pub-date")
-        pub_date: List[str] = list_into_bs_format(pub_date)
-        year: List[str] = find_term_in_list(pub_date, "year")
-        journal: List[str] = find_term_in_list(journal_metadata, "journal-title")
-        if doi == ["Nothing Found"]:
-            pdf2doi.config.set("verbose", False)
-            identifier = pdf2doi.pdf2doi(self.file_path)
-            if bool(identifier) is True:
-                doi = [identifier["identifier"]]
-        self.title = title
-        self.doi = doi
-        self.authors = authors
-        self.keywords = keywords
-        self.year = year
-        self.journal = journal
 
     def get_api(self) -> None:
         """Creata a class object from a .pdf file (file_path)"""
