@@ -116,20 +116,12 @@ class Pipeline(BaseModel):
                     row_indexes.append(collumn_number)
             return row_indexes
     
-    def snap_figure(self, image_folder_path: str, page, file_path:str, box: List[float], number: int, doc_name: str, block_type, page_size: Optional[tuple] = None) -> Dict[str, Any]:
+    def snap_figure(self, image_folder_path: str, page, file_path:str, box: List[float], number: int, doc_name: str, block_type) -> Dict[str, Any]:
         # Open the PDF and extract the formula region
         pdf_document = fitz.open(file_path)
         page = pdf_document[page - 1]  # Pages are 0-indexed in fitz
-        if page_size is not None:
-            page_width, page_height = page_size
-            real_page_rect = page.rect
-            real_width = real_page_rect.width
-            real_height = real_page_rect.height
-            rect = fitz.Rect(box[0] * real_width / page_width, box[1] * real_height / page_height,
-                            box[2] * real_width / page_width, box[3] * real_height / page_height)
-        else:
-            rect = fitz.Rect(box[0], box[1], 
-                            box[2], box[3])
+        rect = fitz.Rect(box[0], box[1], 
+                        box[2], box[3])
         
         # Normalize and clip the rectangle to page bounds
         rect.normalize()  # Ensures coordinates are in correct order

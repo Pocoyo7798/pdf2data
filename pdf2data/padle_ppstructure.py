@@ -1,9 +1,12 @@
 from typing import Any, Dict, List
+
+from shapely import box
 from pdf2data.pipeline import Pipeline, Table, Figure, Text, Equation
 from pydantic import PrivateAttr
 import json
 import os
 from paddleocr import PPStructureV3
+import fitz
 
 class PaddlePPStructure(Pipeline):
     _converter: PPStructureV3 = PrivateAttr(default=None)
@@ -12,8 +15,22 @@ class PaddlePPStructure(Pipeline):
         self._converter = PPStructureV3(use_doc_orientation_classify=False,
                     use_doc_unwarping=False,
                     use_chart_recognition=False,)
+        
+    def correct_box_size(self, box_size: List[float], page_size: tuple, file_path: str, page: int) -> List[float]:
+        """correct the box size if it is out of the page bounds"""
+        page_width, page_height = page_size
+        pdf_document = fitz.open(file_path)
+        page = pdf_document[page - 1]  # Pages are 0-indexed in fitz
+        real_page_rect = page.rect
+        real_width = real_page_rect.width
+        real_height = real_page_rect.height
+        new_box = [box_size[0] * real_width / page_width, box_size[1] * real_height / page_height,
+                            box_size[2] * real_width / page_width, box_size[3] * real_height / page_height]
+        pdf_document.close()
+        return new_box
+
     def generate_text_block(self, 
-                             block: Dict[str, Any], page_number: int) -> Dict[str, Any]: 
+                             block: Dict[str, Any], file_path: str, page_number: int, page_size: tuple) -> Dict[str, Any]: 
         text_object = Text()
         if block["block_label"] in ["paragraph", "abstract", "text"]:
             text_object.type = "paragraph"
@@ -21,7 +38,7 @@ class PaddlePPStructure(Pipeline):
             text_object.type = "section_header"
         text_object.content = block["block_content"]
         text_object.page = page_number
-        text_object.box = block["block_bbox"]
+        text_object.box = self.correct_box_size(block["block_bbox"], page_size, file_path, page_number)
         return text_object.model_dump()
     
     def generate_equation_block(self,
@@ -35,7 +52,7 @@ class PaddlePPStructure(Pipeline):
         equation_object = Equation()
         equation_object.content = self._latex_parser.latex_to_text(block["block_content"])
         equation_object.page = page_number
-        equation_object.box = block["block_bbox"]
+        equation_object.box = self.correct_box_size(block["block_bbox"], page_size, file_path, page_number)
         equation_object.number = number
         equation_object.filepath = self.snap_figure(image_folder_path,
                                                    equation_object.page,
@@ -43,8 +60,7 @@ class PaddlePPStructure(Pipeline):
                                                    equation_object.box,
                                                    number,
                                                    doc_name,
-                                                   "Equation",
-                                                   page_size = page_size)
+                                                   "Equation",)
         return equation_object.model_dump()
     
     def generate_figure_block(self,
@@ -59,7 +75,7 @@ class PaddlePPStructure(Pipeline):
                              blocks_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         figure_object = Figure()
         figure_object.page = page_number
-        figure_object.box = block["block_bbox"]
+        figure_object.box = self.correct_box_size(block["block_bbox"], page_size, file_path, page_number)
         figure_object.number = number
         figure_object.filepath = self.snap_figure(image_folder_path,
                                                    figure_object.page,
@@ -67,8 +83,7 @@ class PaddlePPStructure(Pipeline):
                                                    figure_object.box,
                                                    number,
                                                    doc_name,
-                                                   "Figure",
-                                                   page_size = page_size)
+                                                   "Figure",)
         if index < 1 or index >= len(blocks_list) - 1:
             figure_object.caption = ""
         elif blocks_list[index - 1]["block_label"] == "figure_title":
@@ -91,7 +106,7 @@ class PaddlePPStructure(Pipeline):
                              blocks_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         table_object = Table()
         table_object.page = page_number
-        table_object.box = block["block_bbox"]
+        table_object.box = self.correct_box_size(block["block_bbox"], page_size, file_path, page_number)
         table_object.number = number
         table_object.filepath = self.snap_figure(image_folder_path,
                                                    table_object.page,
@@ -99,8 +114,7 @@ class PaddlePPStructure(Pipeline):
                                                    table_object.box,
                                                    number,
                                                    doc_name,
-                                                   "Table",
-                                                   page_size = page_size)
+                                                   "Table")
         if index < 1 or index >= len(blocks_list) - 1:
             table_object.caption = ""
         elif blocks_list[index + 1]["block_label"] == "table_title":
@@ -134,7 +148,7 @@ class PaddlePPStructure(Pipeline):
                 block_data: Dict[str, Any] = {}
                 if block["block_label"] in ["paragraph", "paragraph_title", "doc_title", "abstract", "text"] and self.extract_text:
                     text_block = self.generate_text_block(
-                            block, page_number
+                            block, file_path, page_number, page_size,
                         )
                     block_data = text_block
                 elif block["block_label"] == "formula" and self.extract_equations:
