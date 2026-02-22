@@ -1,4 +1,4 @@
-from pdf2data.support import get_doc_list, verify_string, verify_string_list, calc_metrics, get_block_info, verify_boxes, verify_table_strucuture, verify_lists, entries_similarity_horizontal, entries_similarity_vertical
+from pdf2data.support import get_doc_list, verify_string, verify_string_block_list, verify_string_list, calc_metrics, get_block_info, verify_boxes, verify_table_strucuture, verify_lists, entries_similarity_horizontal, entries_similarity_vertical
 import json
 import shutil
 from difflib import SequenceMatcher
@@ -112,32 +112,33 @@ class Evaluator(BaseModel):
             ref_path: str = self.ref_folder + '/' + file
             with open(ref_path, "r") as f:
                 ref_zones = json.load(f)
-            result_file: str = file.replace("zones", "")
+            result_file: str = file.replace("textzones", "content")
             result_path: str = self.result_folder + '/' + result_file
             with open(result_path, "r") as f:
-                zones: dict = json.load(f)
+                zones: dict = json.load(f)["blocks"]
             j: int = 0
             index: int = -1
             tp_lines: int = 0
-            fp_lines: int = len(zones['Text'])
+            fp_lines: int = len(zones)
             fn_lines: int = 0
             ref_full_text_list: List[str] = []
             full_text_list: List[str] = []
-            for line in zones['Text']:
-                full_text_list.append(line)
+            for block in zones:
+                if block["type"] in ["paragraph", "section_header"]:
+                    full_text_list.append(block['content'])
             for line in ref_zones['Text']:
-                exist_line, new_index = verify_string_list(line, zones['Text'],threshold_value=self.string_similarity)
+                exist_line, new_index = verify_string_block_list(line, zones,threshold_value=self.string_similarity)
                 ref_full_text_list.append(line)
                 if exist_line is True:
                     tp_lines = tp_lines + 1
                     fp_lines = fp_lines - 1
-                    if ref_zones['Type'][j] == zones['Type'][new_index]:
+                    if ref_zones['Type'][j] == zones[new_index]['type']:
                         total_correct_type = total_correct_type + 1
                     else:
                         total_error_type = total_error_type + 1
                     if new_index > index:
                         total_correct_order = total_correct_order + 1
-                        zones['Text'][new_index] = '#####'
+                        zones[new_index]['content'] = '#####'
                         index = new_index
                     else:
                         total_error_order = total_error_order + 1
@@ -189,15 +190,21 @@ class Evaluator(BaseModel):
         total_fn_block_legends: int = 0
         correct_structure: int = 0
         total_tables: int = 0
+        total_docs: int = len(doc_list)
+        doc_number: int = 1
         for file in doc_list:
+            print(file)
+            print(f'{doc_number}//{total_docs} processed')
+            doc_number += 1
             file_path = self.ref_folder + '/' + file
             with open(file_path, "r") as f:
                 ref_blocks: dict = json.load(f)
-            result_path: str = self.result_folder + '/' + file
+            result_path: str = self.result_folder + '/' + file.replace("blocks", "content")
             with open(result_path, "r") as f:
                 document_blocks: dict = json.load(f)
             blocks: List[Any] = document_blocks["blocks"]
             table_boxes, table_legends, table_pages, table_structure, table_row_indexes, table_column_headers, figure_boxes, figure_legends, figure_pages = get_block_info(blocks)
+            print(table_boxes)
             tp_table_boxes: int = 0
             fp_table_boxes: int = len(table_boxes)
             fn_table_boxes: int = 0
@@ -205,7 +212,6 @@ class Evaluator(BaseModel):
             fp_figure_boxes: int = len(figure_boxes)
             fn_figure_boxes: int = 0
             tp_block_legends: int = 0
-            fp_block_legends: int = 0
             fn_block_legends: int = 0
             for block in ref_blocks['Blocks']:
                 # Boxes, indexes, headers and entries evaluation
@@ -222,20 +228,21 @@ class Evaluator(BaseModel):
                 ref_legend: List[List[str]] = block["legend"]
                 if block["type"] == "Table":
                     exists_table, index= verify_boxes(box, page, table_boxes, table_pages, iou_value=self.iou_threshold, get_index=True)
+                    print(f'exists_table: {exists_table}')
                 else:
                     exists_figure, index= verify_boxes(box, page, figure_boxes, figure_pages, iou_value=self.iou_threshold, get_index=True)
                 if exists_figure is True:
+                    legends_list = figure_legends
                     exist_block = True
                     tp_figure_boxes = tp_figure_boxes + 1
                     fp_figure_boxes = fp_figure_boxes - 1
-                    legend: str = figure_legends[index]
                 elif exists_figure is False:
                     fn_figure_boxes = fn_figure_boxes + 1
                 elif exists_table is True:
+                    legends_list = table_legends
                     exist_block = True
                     tp_table_boxes = tp_table_boxes + 1
                     fp_table_boxes = fp_table_boxes - 1
-                    legend = table_legends[index]
                     column_headers = table_column_headers[index]
                     ref_column_headers = block['column_headers']
                     row_indexes = table_row_indexes[index]
@@ -264,15 +271,15 @@ class Evaluator(BaseModel):
                     total_fn_table_row_indexes = total_fn_table_row_indexes + row_evaluation['false_negatives']
                 elif exists_table is False:
                     fn_table_boxes = fn_table_boxes + 1
-                    print(ref_legend)
+                    #print(ref_legend)
                 # Legends evaluation
                 if exist_block is True:
-                    if verify_string(ref_legend, legend) is True:
-                        tp_block_legends = tp_block_legends + 1
-                    elif legend == '':
-                        fn_block_legends = fn_block_legends + 1
+                    verify_legends, legend_index = verify_string_list(ref_legend, legends_list, get_index=True, threshold_value=self.string_similarity)
+                    if verify_legends is True:
+                        del legends_list[legend_index]
+                        tp_block_legends += 1
                     else:
-                        fp_block_legends = fp_block_legends + 1
+                        fn_block_legends += 1
                     #print(ref_structure)
                     #print(structure)
             total_tp_table_boxes = total_tp_table_boxes + tp_table_boxes
@@ -282,7 +289,7 @@ class Evaluator(BaseModel):
             total_fp_figure_boxes = total_fp_figure_boxes + max(0, fp_figure_boxes)
             total_fn_figure_boxes = total_fn_figure_boxes + fn_block_legends
             total_tp_block_legends = total_tp_block_legends + tp_block_legends
-            total_fp_block_legends = total_fp_block_legends + max(0, fp_block_legends)
+            total_fp_block_legends = total_fp_block_legends + max(0, len(table_legends) + len(figure_legends))
             total_fn_block_legends = total_fn_block_legends + fn_block_legends
         results: dict = {}
         structure_accuracy: float = correct_structure / total_tables

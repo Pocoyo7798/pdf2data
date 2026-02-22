@@ -1158,7 +1158,7 @@ def verify_string(ref_string: str, string: str, threshold: float=0.8) -> bool:
         return True
     return False
 
-def verify_string_list(ref_word: str, word_list: List[float], get_index: bool=True, threshold_value: float=0.8) -> Any:
+def verify_string_block_list(ref_word: str, block_list: List[Dict[str, Any]], get_index: bool=True, threshold_value: float=0.8) -> Any:
     """Verify if a string exists inside a list of strings
 
     Parameters
@@ -1178,7 +1178,40 @@ def verify_string_list(ref_word: str, word_list: List[float], get_index: bool=Tr
         True if the string exist inside the list, False otherwise. Also return the string index optionally
     """
     j: int = 0
-    for word in word_list:
+    for block in block_list:
+        if block["type"] in ["paragraph", "section_header"]:
+            word: str = block["content"]
+            test: bool = verify_string(ref_word, word, threshold=threshold_value)
+            if test is True and get_index  is True:
+                return True, j
+            elif test is True:
+                return True
+            j = j + 1
+    if get_index is True:
+        return False, None
+    return False
+
+def verify_string_list(ref_word: str, string_list: List[str], get_index: bool=True, threshold_value: float=0.8) -> Any:
+    """Verify if a string exists inside a list of strings
+
+    Parameters
+    ----------
+    ref_word : str
+        string to consider
+    word_list : List[float]
+        List of strings
+    get_index : bool, optional
+        True to return also de string index, False otherwise, by default True
+    threshold_value : float, optional
+        Similarity threshold to consider two strings similar, by default 0.8
+
+    Returns
+    -------
+    Any
+        True if the string exist inside the list, False otherwise. Also return the string index optionally
+    """
+    j: int = 0
+    for word in string_list:
         test: bool = verify_string(ref_word, word, threshold=threshold_value)
         if test is True and get_index  is True:
             return True, j
@@ -1216,14 +1249,14 @@ def get_block_info(block_list: List[Dict[str, Any]]) -> Any:
     for block in block_list:
         if block['type'] == 'Table':
             table_boxes.append(block['box'])
-            table_legends.append(block['legend'])
+            table_legends.append(block['caption'])
             table_pages.append(block["page"])
             table_structure.append(block['block'])
             table_row_indexes.append(block['row_indexes'])
-            table_collumn_headers.append(block['collumn_headers'])
+            table_collumn_headers.append(block['column_headers'])
         else:
             figure_boxes.append(block['box'])
-            figure_legends.append(block['legend'])
+            figure_legends.append(block['caption'])
             figure_pages.append(block["page"])
     return table_boxes, table_legends,table_pages, table_structure, table_row_indexes, table_collumn_headers, figure_boxes, figure_legends, figure_pages
 
