@@ -15,8 +15,8 @@ class Docling(Pipeline):
 
     def correct_boxes(self, l, t, r, b, page_height, origin):
         if origin == "BOTTOMLEFT":
-            corrected_t = page_height - b
-            corrected_b = page_height - t
+            corrected_t = page_height - t
+            corrected_b = page_height - b
             return [l, corrected_t, r, corrected_b]
         elif origin == "TOPLEFT":
             return [l, t, r, b]
@@ -170,6 +170,10 @@ class Docling(Pipeline):
                                               self._page_dict_height[str(table_object.page)]["size"]["height"],
                                               table_dict["prov"][0]["bbox"]["coord_origin"])
         table_object.block, table_object.column_headers, table_object.row_indexes = self.get_table_from_cells(table_dict["data"]["table_cells"])
+        old_table_block = table_object.block.copy()
+        table_object.block = self.correct_table_structure(table_object.block)
+        if len(old_table_block) != len(table_object.block):
+            table_object.caption = old_table_block[0][0]
         table_object.filepath = self.snap_figure(image_folder_path,
                                                  table_object.page,
                                                  file_path,

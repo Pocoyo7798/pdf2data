@@ -90,9 +90,10 @@ def text_extractor(input_folder: str, output_folder: Optional[str], pipeline: st
             extract_tables=False,
             extract_figures=False)
         docling_pipeline.pdf_transform()
-    elif pipeline == "PaddlePPStructure":
-        from pdf2data.padle_ppstructure import PaddlePPStructure
+    elif pipeline in ["PaddlePPStructure", "PaddleVL"]:
+        from pdf2data.padle_pipeline import PaddlePPStructure
         paddle_pipeline: PaddlePPStructure = PaddlePPStructure(
+            extractor_name=pipeline,
             input_folder=input_folder,
             output_folder=output_folder,
             extract_tables=False,

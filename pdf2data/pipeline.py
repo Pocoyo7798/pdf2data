@@ -80,6 +80,19 @@ class Pipeline(BaseModel):
                         break
             return collumn_headers
 
+    def correct_box_size(self, box_size: List[float], page_size: tuple, file_path: str, page: int) -> List[float]:
+        """correct the box size if it is out of the page bounds"""
+        page_width, page_height = page_size
+        pdf_document = fitz.open(file_path)
+        page = pdf_document[page - 1]  # Pages are 0-indexed in fitz
+        real_page_rect = page.rect
+        real_width = real_page_rect.width
+        real_height = real_page_rect.height
+        new_box = [box_size[0] * real_width / page_width, box_size[1] * real_height / page_height,
+                            box_size[2] * real_width / page_width, box_size[3] * real_height / page_height]
+        pdf_document.close()
+        return new_box
+
     def find_row_indexes(self, table_block: List[List[str]], max_rows: int = 2) -> List[int]:
         """find the row indexes by finding collumns without entries with three times more digits then letters
 
@@ -139,6 +152,8 @@ class Pipeline(BaseModel):
         return os.path.join(f"{doc_name}_images", f"{block_type}_{number}.png")
 
     def correct_table_structure(self, table_list: List[List[str]]) -> List[List[str]]:
+        if self.find_legend_in_row(table_list[0]):
+            table_list = table_list[1:]
         row_length: int = max(len(row) for row in table_list)
         corrected_table: List[List[str]] = []
         i: int = 0
@@ -153,6 +168,25 @@ class Pipeline(BaseModel):
             i += 1
             corrected_table.append(row)
         return corrected_table
+    
+    def find_legend_in_row(self, row: List[str]) -> Optional[str]:
+        caption_keywords = ["table", "tab.", "table."]
+        same_entry = True
+        entry_string = None
+        for entry in row:
+            if entry_string is None:
+                entry_string = entry
+            elif entry_string != entry:
+                same_entry = False
+                break
+        legend_found = False
+        if same_entry is True:
+            for keyword in caption_keywords:
+                if keyword in entry_string.lower():
+                    legend_found = True
+                    break
+        return legend_found
+
     def html_table_to_list(self, html):
         if html == "":
             return [[]]

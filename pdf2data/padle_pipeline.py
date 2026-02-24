@@ -5,29 +5,21 @@ from pdf2data.pipeline import Pipeline, Table, Figure, Text, Equation
 from pydantic import PrivateAttr
 import json
 import os
-from paddleocr import PPStructureV3
+from paddleocr import PPStructureV3, PaddleOCRVL
 import fitz
 
 class PaddlePPStructure(Pipeline):
+    extractor_name: str = "PaddlePPStructure"
     _converter: PPStructureV3 = PrivateAttr(default=None)
 
     def model_post_init(self, context):
-        self._converter = PPStructureV3(use_doc_orientation_classify=False,
-                    use_doc_unwarping=False,
-                    use_chart_recognition=False,)
+        if self.extractor_name == "PaddlePPStructure":
+            self._converter = PPStructureV3(use_doc_orientation_classify=False,
+                        use_doc_unwarping=False,
+                        use_chart_recognition=False,)
+        elif self.extractor_name == "PaddleVL":
+            self._converter = PaddleOCRVL(use_chart_recognition=False)
         
-    def correct_box_size(self, box_size: List[float], page_size: tuple, file_path: str, page: int) -> List[float]:
-        """correct the box size if it is out of the page bounds"""
-        page_width, page_height = page_size
-        pdf_document = fitz.open(file_path)
-        page = pdf_document[page - 1]  # Pages are 0-indexed in fitz
-        real_page_rect = page.rect
-        real_width = real_page_rect.width
-        real_height = real_page_rect.height
-        new_box = [box_size[0] * real_width / page_width, box_size[1] * real_height / page_height,
-                            box_size[2] * real_width / page_width, box_size[3] * real_height / page_height]
-        pdf_document.close()
-        return new_box
 
     def generate_text_block(self, 
                              block: Dict[str, Any], file_path: str, page_number: int, page_size: tuple) -> Dict[str, Any]: 
@@ -124,7 +116,10 @@ class PaddlePPStructure(Pipeline):
         else:            
             table_object.caption = ""
         table_object.block = self.html_table_to_list(block["block_content"])
+        old_table_block = table_object.block.copy()
         table_object.block = self.correct_table_structure(table_object.block)
+        if len(old_table_block) != len(table_object.block):
+            table_object.caption = old_table_block[0][0]
         table_object.column_headers = self.find_column_headers(table_object.block)
         table_object.row_indexes = self.find_row_indexes(table_object.block)
         return table_object.model_dump()

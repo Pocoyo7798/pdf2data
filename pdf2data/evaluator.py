@@ -244,7 +244,7 @@ class Evaluator(BaseModel):
                     tp_table_boxes = tp_table_boxes + 1
                     fp_table_boxes = fp_table_boxes - 1
                     column_headers = table_column_headers[index]
-                    ref_column_headers = block['column_headers']
+                    ref_column_headers = block['collumn_headers']
                     row_indexes = table_row_indexes[index]
                     ref_row_indexes = block['row_indexes']
                     structure = table_structure[index]
