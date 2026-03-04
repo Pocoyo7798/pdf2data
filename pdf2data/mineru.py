@@ -44,15 +44,20 @@ class MinerU(Pipeline):
 
     def get_image_path(self, lines: List[Dict[str, Any]]) -> str:
         path = None
+        found_path = False
         for line in lines:
             for span in line["spans"]:
                 try:
                     if span["image_path"] != "images/":
                         path = span["image_path"]
+                        found_path = True
+                        break
                     else:
                         path = None
                 except KeyError:
                     path = None
+            if found_path:
+                break
         return path
     
     def get_equation_info(self, lines: List[Dict[str, Any]], equation_object: Equation) -> Dict[str, Any]:
@@ -63,13 +68,12 @@ class MinerU(Pipeline):
                 try:
                     if span["type"] == "interline_equation":
                         content +=  " " + self._latex_parser.latex_to_text(span["content"]).replace(" ", "")
-                    elif span["image_path"] != "images/":
-                        equation_object.filepath = span["image_path"]
+                        if span["image_path"] != "images/":
+                            path = span["image_path"]
                 except KeyError:
                     pass
         equation_object.content = content.strip()
         equation_object.filepath = path
-        return equation_object.model_dump()
             
     def extract_pdfs(self) -> None:
         print(os.listdir(self.pdf_copies_folder))
@@ -137,8 +141,9 @@ class MinerU(Pipeline):
                 figure_object.caption = self.get_text_from_lines(block["lines"])
             elif block["type"] == "image_footnote":
                 figure_object.footnotes = self.get_text_from_lines(block["lines"])
-            elif block["type"] == "image_content":
+            elif block["type"] == "image_body":
                 figure_object.filepath = self.get_image_path(block["lines"])
+        print(figure_object.filepath)
         if figure_object.filepath is None:
             return None
         figure_object.number = number
@@ -176,6 +181,8 @@ class MinerU(Pipeline):
                             page_size: tuple) -> Dict[str, Any]:
         equation_object = Equation()
         self.get_equation_info(initial_block["lines"], equation_object)
+        print("file_path: " + str(equation_object.filepath))
+        print("content: " + str(equation_object.content))
         if equation_object.filepath is None or equation_object.content == "":
             return None
         equation_object.page = page_number
@@ -187,6 +194,15 @@ class MinerU(Pipeline):
         )
         equation_object.filepath = os.path.join(f"{doc_name}_images", f"Equation_{number}.png")
         return equation_object.model_dump()
+
+    def generate_text(self, content: Dict[str, Any]) -> str:
+        text = ""
+        for text_content in content:
+            try:
+                text += " " + text_content["content"]
+            except KeyError:
+                pass
+            return text.strip()
 
     def update_references(self, content: Dict[str, Any]) -> None:
         try:
@@ -218,12 +234,12 @@ class MinerU(Pipeline):
             else:
                 raise ValueError("Did not found a valid folder type in the MinerU output.")
             miner_results_folder = os.path.join(self.output_folder, f"{folder}/{process_type}")
-            final_results_file_path = os.path.join(self.output_folder, f"{folder}_content_list_v2.json")
+            final_results_file_path = os.path.join(miner_results_folder, f"{folder}_content_list_v2.json")
             mildle_results_file_path = os.path.join(miner_results_folder, f"{folder}_middle.json")
             pdf_file_path = os.path.join(miner_results_folder, f"{folder}_origin.pdf")
             with open(mildle_results_file_path, "r") as middle_file:
                 content_list: Dict[str, Any] = json.load(middle_file)["pdf_info"]
-            with open(final_results_file_path, "w") as final_file:
+            with open(final_results_file_path, "r") as final_file:
                 reference_info: List[Dict[str, Any]] = json.load(final_file)
             if self.extract_tables and self.extract_figures and self.extract_text:
                 image_folder_path = os.path.join(self.output_folder, folder, f"{folder}_images")
@@ -233,10 +249,10 @@ class MinerU(Pipeline):
                 os.makedirs(image_folder_path)
             page_number = 0
             self._reference_list = []
-            for page in content_list["preproc_blocks"]:
+            for page in content_list:
                 page_size = tuple(page["page_size"])
                 page_number += 1
-                for content in page:
+                for content in page["para_blocks"]:
                     if content["type"] == "table" and self.extract_tables:
                         table_amount += 1
                         table_block = self.generate_table_block(
@@ -263,7 +279,9 @@ class MinerU(Pipeline):
                             pdf_file_path,
                             page_size
                         )
-                        blocks_info["blocks"].append(figure_block)
+                        print(figure_block)
+                        if figure_block is not None:
+                            blocks_info["blocks"].append(figure_block)
                     elif content["type"] in ["text", "title"] and self.extract_text:
                         text_block = self.generate_text_block(
                             content,
@@ -286,9 +304,10 @@ class MinerU(Pipeline):
                         )
                         blocks_info["blocks"].append(equation_block)
             if self.extract_references:
-                for content in reference_info:
-                    if content["type"] == "reference_list":
-                        self.update_references(content)
+                for page in reference_info:
+                    for block in page:
+                        if block["type"] == "list":
+                            self.update_references(block)
             if self.extract_tables and self.extract_figures and self.extract_text:
                 with open(os.path.join(f"{self.output_folder}", folder, f"{folder}_content.json"), "w") as f:
                     json.dump(blocks_info, f, indent=4)
@@ -310,17 +329,16 @@ class MinerU(Pipeline):
         files_list = os.listdir(self.input_folder)
         self.pdf_copies_folder = os.path.join(self.input_folder, "pdf_copies")
         os.makedirs(self.pdf_copies_folder, exist_ok=True)
-        total_size = 0
+        file_amount = 0
         print(files_list)
         for file_name in files_list:
             if file_name.endswith('.pdf'):
                 file_path = os.path.join(self.input_folder, file_name)
                 file_size = os.path.getsize(file_path) / 1024 / 1024
-                print(total_size)
-                if total_size + file_size <= 50:  # 50 MB in bytes
+                if file_amount <= 10:  # 50 MB in bytes
                     new_file_path = os.path.join(self.pdf_copies_folder, file_name)
                     shutil.copy(file_path, new_file_path)
-                    total_size += file_size
+                    file_amount += 1
                 else:
                     self.extract_pdfs()
                     # Delete all files in the pdf_copies_folder
@@ -330,7 +348,7 @@ class MinerU(Pipeline):
                             os.remove(copied_file_path)
                     new_file_path = os.path.join(self.pdf_copies_folder, file_name)
                     shutil.copy(file_path, new_file_path)
-                    total_size += file_size
+                    file_amount = 1
         self.extract_pdfs()
         if os.path.exists(self.pdf_copies_folder):
                     shutil.rmtree(self.pdf_copies_folder)

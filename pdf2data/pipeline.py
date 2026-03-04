@@ -12,7 +12,7 @@ class Table(BaseModel):
     type: str = "Table"
     filepath: Optional[str] = None
     number: Optional[int] = None
-    caption: Optional[str] = None
+    caption: str = ""
     block: Optional[List[List[str]]] = None
     footnotes: Optional[str] = None
     column_headers: Optional[List[int]] = None
@@ -24,7 +24,7 @@ class Figure(BaseModel):
     type: str = "Figure"
     filepath: Optional[str] = None
     number: Optional[int] = None
-    caption: Optional[str] = None
+    caption: str = ""
     footnotes: Optional[str] = None
     page: Optional[int] = None    
     box: Optional[List[float]] = None
@@ -166,6 +166,8 @@ class Pipeline(BaseModel):
                     row += [corrected_table[i - 1][j]]
                     j += 1
             i += 1
+            for j in range(len(row)):
+                row[j] = self._latex_parser.latex_to_text(row[j])
             corrected_table.append(row)
         return corrected_table
     

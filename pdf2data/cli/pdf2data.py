@@ -308,6 +308,13 @@ def pdf2data(input_folder: str,
             output_folder=output_folder,
             extract_references=True)
         paddle_pipeline.pdf_transform()
+    elif pipeline == "MinerUVL":
+        from pdf2data.mineru_vlm import MinerUVLM
+        mineru_vlm_pipeline: MinerUVLM = MinerUVLM(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_references=True)
+        mineru_vlm_pipeline.pdf_transform()
     document_extraction_time = time.time() - start_time / 60
     folders_list = os.listdir(output_folder)
     number = 1

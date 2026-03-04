@@ -204,7 +204,6 @@ class Evaluator(BaseModel):
                 document_blocks: dict = json.load(f)
             blocks: List[Any] = document_blocks["blocks"]
             table_boxes, table_legends, table_pages, table_structure, table_row_indexes, table_column_headers, figure_boxes, figure_legends, figure_pages = get_block_info(blocks)
-            print(table_boxes)
             tp_table_boxes: int = 0
             fp_table_boxes: int = len(table_boxes)
             fn_table_boxes: int = 0
@@ -228,7 +227,6 @@ class Evaluator(BaseModel):
                 ref_legend: List[List[str]] = block["legend"]
                 if block["type"] == "Table":
                     exists_table, index= verify_boxes(box, page, table_boxes, table_pages, iou_value=self.iou_threshold, get_index=True)
-                    print(f'exists_table: {exists_table}')
                 else:
                     exists_figure, index= verify_boxes(box, page, figure_boxes, figure_pages, iou_value=self.iou_threshold, get_index=True)
                 if exists_figure is True:

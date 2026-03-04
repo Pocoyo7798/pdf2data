@@ -247,6 +247,14 @@ def block_extractor(
             extract_equations=False,
             extract_text=False)
         paddle_pipeline.pdf_transform()
+    elif pipeline == "MinerUVL":
+        from pdf2data.mineru_vlm import MinerUVLM
+        mineru_vlm_pipeline: MinerUVLM = MinerUVLM(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_equations=False,
+            extract_text=False)
+        mineru_vlm_pipeline.pdf_transform()
     
     
             

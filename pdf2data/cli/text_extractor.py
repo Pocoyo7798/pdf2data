@@ -99,6 +99,14 @@ def text_extractor(input_folder: str, output_folder: Optional[str], pipeline: st
             extract_tables=False,
             extract_figures=False)
         paddle_pipeline.pdf_transform()
+    elif pipeline == "MinerUVL":
+        from pdf2data.mineru_vlm import MinerUVLM
+        mineru_vlm_pipeline: MinerUVLM = MinerUVLM(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            extract_tables=False,
+            extract_figures=False)
+        mineru_vlm_pipeline.pdf_transform()
     
 
 

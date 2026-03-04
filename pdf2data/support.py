@@ -1294,6 +1294,7 @@ def verify_table_strucuture(ref_table: List[List[str]], table: List[List[str]]) 
             equal_structure: bool = True
         else:
             equal_structure = False
+            print("Look this document")
     return {'true_positives': true_positives, 'false_positives': false_positives, 'false_negatives': false_negatives, 'correct_structure': equal_structure}
 
 def verify_lists(list1: List[Any], list2: List[Any], dev: bool = False) -> Dict[str, Any]:
