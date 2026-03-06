@@ -172,8 +172,15 @@ def pdf2data(input_folder: str,
 ) -> None:
     start_time = time.time()
     if pipeline == "NotDefined":
-        if os.path.isdir(output_folder) is False:
-            os.mkdir(output_folder)
+        from pdf2data.pdf2data_pipeline import PDF2Data
+        pdf2data_pipeline: PDF2Data = PDF2Data(layout_model=layout_model, 
+                                               layout_model_threshold=layout_model_threshold, 
+                                               table_model=table_model, 
+                                               table_model_threshold=table_model_threshold, device=device, 
+                                               input_folder=input_folder, 
+                                               output_folder=output_folder,
+                                               extract_references=True)
+        pdf2data_pipeline.pdf_transform()
         """file_list: List[str] = get_doc_list(input_folder, "pdf")
         possible_types = set(["layoutparser", "cermine", "minersix"])
         if text_extractor_type not in possible_types:

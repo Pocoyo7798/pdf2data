@@ -189,7 +189,6 @@ class Docling(Pipeline):
         figure_amount: int = 1
         table_amount: int = 1
         equation_amount: int = 1
-        get_references: bool = False
         reference_list: List[str] = []
         for content in document_body:
             reference = content["$ref"]
@@ -229,7 +228,7 @@ class Docling(Pipeline):
                     )
                 table_amount += 1
                 block_data = table_block
-            elif "groups" in reference and get_references:
+            elif "groups" in reference and self.extract_references:
                 group_dict: Dict[str, Any] = self._groups_dict[reference]
                 for item in group_dict["children"]:
                     text_reference = item["$ref"]

@@ -11,14 +11,13 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "Click<=8.1.8",
+    "Click<=8.3.1",
     "PyMuPDF<=1.26.7",
     "pylatexenc<=2.10",
-    "PyPDF<=3.0.1",
     #"numpy<=2.1.3",
-    #"pydantic<=2.11.7",
+    "pydantic<=2.12.5",
     "beautifulsoup4<=4.14.3",
-    #"pdf2doi<=1.7",
+    "pdf2doi<=1.7",
     #"bibcure<=0.3.0",
     #"importlib_resources<=6.5.2",
     #"lxml<=6.0.0",
@@ -29,17 +28,46 @@ requirements = [
     #"pillow<=11.3.0",
     "Levenshtein<= 0.27.3",
     "trieregex<=1.0.0",
-    #"doclayout_yolo<=0.0.4",
     #"struct_eqtable<=0.3.3",
     #"pdfminer.six==20250506"
     #"easyocr<=1.7.2",
     #"docling<=2.68.0",
-    "bibtexparser<=1.4.3"
+    "bibtexparser<=1.4.3",
+    "pypdf>=3.1.0",
 ]
 
 test_requirements = [
     "pytest>=3",
 ]
+
+mineru_requirements = [
+
+]
+
+mineruvlm_requirements = [
+]
+pdf2data_pipeline_requirements = [
+    "torch<=2.10.0",
+    "opencv-python<=4.13.0.92",
+    "tensorflow<=2.20.0",
+    "doclayout_yolo<=0.0.4",
+    "pdf2image<=1.17.0",
+    "paddleocr<=3.4.0",
+    "paddlepaddle<=3.3.0"
+]
+
+docling_requirements = [
+
+]
+
+paddle_structure_requirements = [
+
+]
+paddle_vl_requirements = [
+    
+]
+
+
 
 setup(
     author="Daniel Pereira Costa",
@@ -72,6 +100,15 @@ setup(
         ],
     },
     install_requires=requirements,
+    extras_require={
+        "test": test_requirements,
+        "pdf2data_pipeline": pdf2data_pipeline_requirements,
+        "mineru": mineru_requirements,
+        "mineruvlm": mineruvlm_requirements,
+        "docling": docling_requirements,
+        "paddle_structure": paddle_structure_requirements,
+        "paddle_vl": paddle_vl_requirements,
+    },
     license="Apache Software License 2.0",
     long_description=readme + "\n\n" + history,
     include_package_data=True,

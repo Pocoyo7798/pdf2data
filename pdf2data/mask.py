@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 import re
 import cv2
 import fitz
-import layoutparser as lp
 import PyPDF2
 import tensorflow as tf
 import torch
@@ -15,7 +14,6 @@ from transformers import DetrImageProcessor, TableTransformerForObjectDetection,
 from doclayout_yolo import YOLOv10
 from huggingface_hub import hf_hub_download
 from torchvision import transforms
-from struct_eqtable import build_model
 from paddleocr import LayoutDetection, TableCellsDetection
 import numpy
 
@@ -36,11 +34,6 @@ class LayoutParser(BaseModel):
     _existing_models: List[str] = PrivateAttr(
         default=set(
             [
-                "PrimaLayout_mask_rcnn_R_50_FPN_3x",
-                "PubLayNet_faster_rcnn_R_50_FPN_3x",
-                "PubLayNet_mask_rcnn_X_101_32x8d_FPN_3x",
-                "TableBank_faster_rcnn_R_50_FPN_3x",
-                "TableBank_faster_rcnn_R_101_FPN_3x",
                 "microsoft/table-transformer-detection",
                 "DocLayout-YOLO-DocStructBench",
                 "PP-DocLayout-L"
@@ -74,28 +67,6 @@ class LayoutParser(BaseModel):
             self._model = YOLOv10(filepath)
         elif self.model == "PP-DocLayout-L":
             self._model = LayoutDetection(model_name="PP-DocLayout-L")
-        elif self.model_path is not None:
-            self._model = lp.Detectron2LayoutModel(
-                f"{self.model_path}/config.yaml",
-                f"{self.model_path}/model_final.pth",
-                device=self.device_type,
-                extra_config=[
-                    "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
-                    self.model_threshold,
-                ],
-                label_map=labels,
-            )
-        else:
-            model_config = LAYOUT_PARSER_CONFIG_REGISTRY[self.model]
-            self._model = lp.Detectron2LayoutModel(
-                config_path=model_config,  # In model catalog
-                label_map=labels,  # In model`label_map`
-                device=self.device_type,
-                extra_config=[
-                    "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
-                    self.model_threshold,
-                ],  # Optional
-            )
         if self.table_model is not None:
             try:
                 labels: Dict[int, str] = LAYOUT_PARSER_LABELS_REGISTRY[self.table_model]
@@ -109,100 +80,6 @@ class LayoutParser(BaseModel):
                 self._table_model = YOLOv10(filepath)
             elif self.table_model == "PP-DocLayout-L":
                 self._table_model = LayoutDetection(model_name="PP-DocLayout-L")
-            elif self.table_model_path is not None:
-                self._model = lp.Detectron2LayoutModel(
-                    f"{self.table_model_path}/config.yaml",
-                    f"{self.table_model_path}/model_final.pth",
-                    device=self.device_type,
-                    extra_config=[
-                        "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
-                        self.table_model_threshold,
-                    ],
-                    label_map=labels,
-                )
-            else:
-                model_config = LAYOUT_PARSER_CONFIG_REGISTRY[self.table_model]
-                self._table_model = lp.Detectron2LayoutModel(
-                    config_path=model_config,  # In model catalog
-                    label_map=labels,  # In model`label_map`
-                    device=self.device_type,
-                    extra_config=[
-                        "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
-                        self.model_threshold
-                    ],  # Optional
-                )
-
-    @staticmethod
-    def generate_layout_lp(
-        model: Any,
-        page: Any,
-        width: float,
-        pdf_width: float,
-        height: float,
-        pdf_height: float,
-    ) -> Dict[str, Any]:
-        """Generate a PDF layout from a page image using layout_parser models
-
-        Parameters
-        ----------
-        model : Any
-            model loaded to detect the layout
-        page : Any
-            page to be analyzed
-        width : float
-            width of the image
-        pdf_width : float
-            width of the pdf
-        height : float
-            height of the image
-        pdf_height : float
-            height of the pdf
-
-        Returns
-        -------
-        Dict[str, Any]
-            A dictionary containing the scores, boxes coordinates and types of each block found.
-        """
-        layout: Any = model.detect(page)
-        exist_figure: bool = False
-        boxes: List[List[float]] = []
-        scores: List[float] = []
-        types: List[str] = []
-        table_boxes: List[List[float]] = []
-        table_scores: List[float] = []
-        table_types: List[str] = []
-        for entry in layout:
-            # Retrieve the bounding box
-            x1: float = entry.block.x_1 / width * pdf_width
-            x2: float = entry.block.x_2 / width * pdf_width
-            y1: float = entry.block.y_1 / height * pdf_height
-            y2: float = entry.block.y_2 / height * pdf_height
-            if entry.type in TEXT_WORDS_REGISTRY:
-                boxes.append([x1, y1, x2, y2])
-                scores.append(entry.score)
-                types.append("Text")
-            elif entry.type in TITLE_WORDS_REGISTRY:
-                boxes.append([x1, y1, x2, y2])
-                scores.append(entry.score)
-                types.append("Title")
-            elif entry.type in TABLE_WORDS_REGISTRY:
-                table_boxes.append([x1, y1, x2, y2])
-                table_scores.append(entry.score)
-                table_types.append("Table")
-            elif entry.type in FIGURE_WORDS_REGISTRY:
-                boxes.append([x1, y1, x2, y2])
-                scores.append(entry.score)
-                types.append("Figure")
-                exist_figure = True
-        return {
-            "boxes": boxes,
-            "scores": scores,
-            "types": types,
-            "table_boxes": table_boxes,
-            "table_scores": table_scores,
-            "table_type": table_types,
-            "exist_figure": exist_figure,
-        }
 
     @staticmethod
     def generate_layout_doc_yolo(
@@ -390,72 +267,6 @@ class LayoutParser(BaseModel):
             "table_type": table_types,
             "exist_figure": exist_figure,
         }
-
-    @staticmethod
-    def generate_layout_hf(
-        model: Any,
-        page: Any,
-        width: float,
-        pdf_width: float,
-        height: float,
-        pdf_height: float,
-        threshold: str,
-    ) -> Dict[str, Any]:
-        """Generate a PDF layout from a page image using huggingface models
-
-        Parameters
-        ----------
-        model : Any
-            model loaded to detect the layout
-        page : Any
-            page to be analyzed
-        width : float
-            width of the image
-        pdf_width : float
-            width of the pdf
-        height : float
-            height of the image
-        pdf_height : float
-            height of the pdf
-        threshold : str
-            threshold value to not consider a positive detection
-
-        Returns
-        -------
-        Dict[str, Any]
-            A dictionary containing the scores, boxes coordinates and types of each block found.
-        """
-        types: List[str] = []
-        feature_extractor = DetrImageProcessor()
-        encoding = feature_extractor(page, return_tensors="pt")
-        encoding.keys()
-        # Send the pixel values and pixel mask through the model
-        with torch.no_grad():
-            outputs = model(**encoding)
-        # Detect all tables in a image
-        results = feature_extractor.post_process_object_detection(
-            outputs, threshold=threshold, target_sizes=[(height, width)]
-        )[0]
-        # Verify if at least one table was detected
-        boxes = results["boxes"].tolist()
-        if len(boxes) != 0:
-            for value in boxes:
-                value[0] = value[0] / width * pdf_width
-                value[1] = value[1] / height * pdf_height
-                value[2] = value[2] / width * pdf_width
-                value[3] = value[3] / height * pdf_height
-                types.append("Table")
-        table_scores = results["scores"].tolist()
-        return {
-            "boxes": [],
-            "scores": [],
-            "types": [],
-            "table_boxes": boxes,
-            "table_scores": table_scores,
-            "table_type": types,
-            "exist_figure": False,
-        }
-
     @staticmethod
     def generate_layout_tatr(
         model: Any,
@@ -567,16 +378,6 @@ class LayoutParser(BaseModel):
             width, height = page.size
             width = float(width)
             height = float(height)
-            """if self.model == "microsoft/table-transformer-detection":
-                first_layout: Dict[str, Any] = LayoutParser.generate_layout_hf(
-                    self._model,
-                    page,
-                    width,
-                    pdf_width,
-                    height,
-                    pdf_height,
-                    self.model_threshold,
-                )"""
             if self.model == "microsoft/table-transformer-detection":
                 first_layout: Dict[str, Any] = LayoutParser.generate_layout_tatr(
                     self._model,
@@ -608,15 +409,6 @@ class LayoutParser(BaseModel):
                     height,
                     pdf_height,
                     self.model_threshold,
-                )
-            else:
-                first_layout = LayoutParser.generate_layout_lp(
-                    self._model,
-                    page,
-                    width,
-                    pdf_width,
-                    height,
-                    pdf_height,
                 )
             boxes: List[List[float]] = first_layout["boxes"]
             scores: List[float] = first_layout["scores"]
@@ -712,58 +504,6 @@ class LayoutParser(BaseModel):
         extracted_blocks["types"] = doc_types
         extracted_blocks["page_type"] = exist_page
         return extracted_blocks
-
-class Table2Latex(BaseModel):
-    model_name: str
-    max_new_tokens: int = 1024
-    max_waiting_time: int = 60
-    zoom: float = 3
-    _model: Optional[Any] = PrivateAttr(default=None)
-
-    def model_post_init(self, __context: Any) -> None:
-        table_regex: str = r"\\begin\{tabularx?\}\{[^}]*\}(.+)\\end\{tabularx?\}"
-        self._table_regex = re.compile(table_regex, re.IGNORECASE | re.MULTILINE)
-        if self.model_name == "U4R/StructTable-InternVL2-1B":
-            self._model = build_model(
-            self.model_name, 
-            max_new_tokens=self.max_new_tokens, 
-            max_time=self.max_waiting_time,
-            tensorrt_path=None,
-            lmdeploy=True,
-        )
-            assert torch.cuda.is_available()
-            if not None:
-                self._model =  self._model.cuda()
-        else:
-            raise AttributeError("The model name is not valid")
-
-
-    def generate_latex(self, 
-        pdf: Any,
-        page_index: int,
-        table_coords: List[List[float]]):
-        page_for_zoom: Any = pdf[page_index]
-        # Correct the tablle coordinates acording the the page size
-        table_rect: fitz.Rect = fitz.Rect(table_coords[0], table_coords[1], table_coords[2], table_coords[3])
-        # apply zoom to increase resolution
-        mat: fitz.Matrix = fitz.Matrix(self.zoom, self.zoom)
-        image: Any = page_for_zoom.get_pixmap(matrix=mat, clip=table_rect)
-        image.save("image.png")
-        image: Any = Image.open("image.png")
-        os.remove('image.png')
-        with torch.no_grad():
-            output = self._model(image, output_format="latex")
-        if len(output) > 0:
-            response = output[0].replace("\n", " ")
-        else:
-            response = ""
-        table_result = self._table_regex.findall(response)
-        if len(table_result) > 0:
-            table: str = str(table_result[0])
-        else:
-            table = ""
-        print(response)
-        return table
 
 class TableStructureParser(BaseModel):
     model: str
@@ -927,30 +667,6 @@ class TableStructureParser(BaseModel):
 
 
 LAYOUT_PARSER_LABELS_REGISTRY: Dict[str, Dict[int, str]] = {
-    "PrimaLayout_mask_rcnn_R_50_FPN_3x": {
-        1: "TextRegion",
-        2: "ImageRegion",
-        3: "TableRegion",
-        4: "MathsRegion",
-        5: "SeparatorRegion",
-        6: "OtherRegion",
-    },
-    "PubLayNet_faster_rcnn_R_50_FPN_3x": {
-        0: "Text",
-        1: "Title",
-        2: "List",
-        3: "Table",
-        4: "Figure",
-    },
-    "PubLayNet_mask_rcnn_X_101_32x8d_FPN_3x": {
-        0: "Text",
-        1: "Title",
-        2: "List",
-        3: "Table",
-        4: "Figure",
-    },
-    "TableBank_faster_rcnn_R_50_FPN_3x": {0: "Table"},
-    "TableBank_faster_rcnn_R_101_FPN_3x": {0: "Table"},
     "DocLayout-YOLO-DocStructBench": {0: 'title', 1: 'plain text', 2: 'abandon', 3: 'figure', 4: 'figure_caption', 5: 'table', 6: 'table_caption', 7: 'table_footnote', 8: 'isolate_formula', 9: 'formula_caption'},
     "microsoft/table-transformer-detection": {0: 'table', 1: 'table rotated', 2: 'no object'},
     "PP-DocLayout-L": {},

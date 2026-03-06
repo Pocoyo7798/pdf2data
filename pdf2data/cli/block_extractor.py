@@ -115,7 +115,7 @@ import click
 @click.option(
     "--struct_model",
     default=None,
-    help="table structure detection model threshold",
+    help="table structure detection model",
 )
 @click.option(
     "--struct_model_threshold",
