@@ -7,19 +7,213 @@ import json
 import os
 from paddleocr import PPStructureV3, PaddleOCRVL
 import fitz
+import subprocess
+import importlib_resources
+import time
+import socket
+import multiprocessing
+import requests
+
+def converter_worker(task_q, result_q, extractor_name):
+
+    if extractor_name == "PaddlePPStructure":
+        converter = PPStructureV3(
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_chart_recognition=False,
+        )
+    elif extractor_name == "PaddleVL":
+        while True:
+            try:
+                requests.get("http://127.0.0.1:8118/health", timeout=1)
+                break
+            except:
+                time.sleep(1)
+        converter = PaddleOCRVL(
+            vl_rec_backend="vllm-server",
+            vl_rec_server_url="http://127.0.0.1:8118/v1"
+        )
+
+    while True:
+        file_path = task_q.get()
+
+        if file_path is None:
+            break
+
+        try:
+            result = converter.predict(file_path)
+
+            # Convert to picklable structure
+            result_q.put([r.json for r in result])
+
+        except Exception as e:
+            result_q.put(e)
 
 class PaddlePPStructure(Pipeline):
     extractor_name: str = "PaddlePPStructure"
     _converter: PPStructureV3 = PrivateAttr(default=None)
+    _max_attempts: int = PrivateAttr(default=3)
+    _task_q: multiprocessing.Queue = PrivateAttr()
+    _result_q: multiprocessing.Queue = PrivateAttr()
+    _worker: multiprocessing.Process = PrivateAttr()
+    _restart_lock: Any = PrivateAttr(default_factory=multiprocessing.Lock)
 
     def model_post_init(self, context):
-        if self.extractor_name == "PaddlePPStructure":
-            self._converter = PPStructureV3(use_doc_orientation_classify=False,
-                        use_doc_unwarping=False,
-                        use_chart_recognition=False,)
-        elif self.extractor_name == "PaddleVL":
-            self._converter = PaddleOCRVL(use_chart_recognition=False)
-        
+
+        if self.extractor_name == "PaddleVL":
+            self.close_server()
+
+            config_file_path = str(
+                importlib_resources.files("pdf2data") / "resources" / "vllm_config.yaml"
+            )
+
+            subprocess.Popen(
+                [
+                    "paddleocr",
+                    "genai_server",
+                    "--model_name",
+                    "PaddleOCR-VL-1.5-0.9B",
+                    "--backend",
+                    "vllm",
+                    "--port",
+                    "8118",
+                    "--backend_config",
+                    config_file_path,
+                ]
+            )
+
+            self.wait_for_port(8118)
+
+        self._task_q = multiprocessing.Queue()
+        self._result_q = multiprocessing.Queue()
+
+        self._worker = multiprocessing.Process(
+            target=converter_worker,
+            args=(self._task_q, self._result_q, self.extractor_name),
+        )
+
+        self._worker.start()
+    
+    def start_worker(self):
+
+        self._task_q = multiprocessing.Queue()
+        self._result_q = multiprocessing.Queue()
+
+        self._worker = multiprocessing.Process(
+            target=converter_worker,
+            args=(self._task_q, self._result_q, self.extractor_name),
+        )
+
+        self._worker.start()
+
+
+    def restart_worker(self):
+
+        print("Restarting worker...")
+
+        try:
+            self._task_q.put(None)
+        except:
+            pass
+
+        if self._worker.is_alive():
+            self._worker.terminate()
+
+        self._worker.join()
+
+        try:
+            self._task_q.close()
+            self._result_q.close()
+        except:
+            pass
+
+        self.start_worker()
+
+
+    def restart_server(self):
+
+        print("Restarting PaddleOCR-VL server...")
+
+        self.close_server()
+
+        config_file_path = str(
+            importlib_resources.files("pdf2data") / "resources" / "vllm_config.yaml"
+        )
+
+        subprocess.Popen([
+            "paddleocr",
+            "genai_server",
+            "--model_name",
+            "PaddleOCR-VL-1.5-0.9B",
+            "--backend",
+            "vllm",
+            "--port",
+            "8118",
+            "--backend_config",
+            config_file_path,
+        ])
+
+        self.wait_for_port(8118)
+
+        # important: allow model loading
+        time.sleep(6)
+
+        print("Server restarted successfully")
+
+    def close_server(self, port=8118):
+        try:
+            result = subprocess.check_output(["lsof", "-ti", f":{port}"]).decode().strip()
+            for pid in result.split("\n"):
+                subprocess.run(["kill", "-9", pid])
+        except subprocess.CalledProcessError:
+            pass  # nothing running on that port
+
+    def predict_with_timeout(self, file_path, timeout=240):
+
+        for attempt in range(self._max_attempts):
+
+            try:
+
+                # Wait if server restarting
+                with self._restart_lock:
+                    pass
+
+                # Ensure server ready before request
+                if self.extractor_name == "PaddleVL":
+                    self.wait_for_port(8118)
+
+                self._task_q.put(file_path)
+
+                result = self._result_q.get(timeout=timeout)
+
+                if isinstance(result, Exception):
+                    raise result
+
+                return result
+
+            except Exception as e:
+
+                print(f"Prediction failed (attempt {attempt+1}): {e}")
+
+                if self.extractor_name == "PaddleVL":
+
+                    with self._restart_lock:
+                        self.restart_server()
+
+                self.restart_worker()
+
+        raise RuntimeError("Prediction failed after maximum retries")
+    
+    def wait_for_port(self, port, host="localhost", timeout=180):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                with socket.create_connection((host, port), timeout=1):
+                    return True
+            except OSError:
+                time.sleep(0.5)
+        raise TimeoutError("Server did not start in time")
+
 
     def generate_text_block(self, 
                              block: Dict[str, Any], file_path: str, page_number: int, page_size: tuple) -> Dict[str, Any]: 
@@ -133,7 +327,7 @@ class PaddlePPStructure(Pipeline):
         reference_list: List[str] = []
         page_number = 1
         for res in output:
-            document_dict: Dict[str, Any] = res.json
+            document_dict: Dict[str, Any] = res
             page_width = document_dict["res"]["width"]
             page_height = document_dict["res"]["height"]
             page_size = (page_width, page_height)
@@ -204,12 +398,13 @@ class PaddlePPStructure(Pipeline):
     def pdf_transform(self) -> None:
         files_list = os.listdir(self.input_folder)
         number = 1
+        self.wait_for_port(8118)
         for file in files_list:
             print(f"{number}//{len(files_list)} processed")
             if file.endswith('.pdf'):
                 file_name = os.path.splitext(file)[0]
                 file_path = os.path.join(self.input_folder, file)
-                results = self._converter.predict(input = file_path)
+                results = self.predict_with_timeout(file_path, timeout=180)
                 if self.extract_tables and self.extract_figures and self.extract_text:
                     results_folder = os.path.join(self.output_folder, file_name)
                 else:
@@ -217,5 +412,6 @@ class PaddlePPStructure(Pipeline):
                 image_folder_path = os.path.join(results_folder, f"{file_name}_images")
                 if not os.path.exists(image_folder_path):
                     os.makedirs(image_folder_path)
-            self.generate_blocks_from_dict(results, results_folder, image_folder_path, file_path, file_name)
+                self.generate_blocks_from_dict(results, results_folder, image_folder_path, file_path, file_name)
             number += 1
+        self.close_server()
