@@ -21,7 +21,6 @@ requirements = [
     #"bibcure<=0.3.0",
     #"importlib_resources<=6.5.2",
     #"lxml<=6.0.0",
-    #"transformers<=4.53.1",
     #"tensorflow<=2.20.0",
     #"cython<=3.0.8",
     #"effdet<=0.3.0",
@@ -53,7 +52,8 @@ pdf2data_pipeline_requirements = [
     "doclayout_yolo<=0.0.4",
     "pdf2image<=1.17.0",
     "paddleocr<=3.4.0",
-    "paddlepaddle<=3.3.0"
+    "paddlepaddle<=3.3.0",
+    "transformers<=5.3.0",
 ]
 
 docling_requirements = [

@@ -17,37 +17,35 @@ import click
     help="Define the pipeline to be used",
 )
 @click.option(
-    "--type",
-    default="layoutparser",
-    help="type of the text extractor, available: ['layoutparser', 'cermine', 'minersix']",
-)
-@click.option(
     "--layout_model",
-    default="PubLayNet_mask_rcnn_X_101_32x8d_FPN_3x",
+    default="PP-DocLayout-L",
     help="model to use to detect the document layout",
 )
 @click.option(
     "--model_threshold",
-    default=0.8,
+    default=0.7,
     help="layout model threshold",
 )
 @click.option(
-    "--device_type",
+    "--device",
     default="cpu",
     help="device type to run the code. Ex: 'cuda'. cpu, etc...",
 )
-def text_extractor(input_folder: str, output_folder: Optional[str], pipeline: str,  type: str, layout_model: str, model_threshold: float, device_type: str) -> None:
+def text_extractor(input_folder: str, output_folder: Optional[str], pipeline: str, layout_model: str, model_threshold: float, device: str) -> None:
     if output_folder is None:
         output_folder = input_folder
     elif os.path.isdir(output_folder) is False:
         os.mkdir(output_folder)
-    possible_types = set(["layoutparser", "cermine", "minersix"])
-    if type not in possible_types:
-        raise AttributeError(
-            f"{type} is not a available type, try one of the following: {possible_types}"
-        )
     if pipeline == "NotDefined":
-        pass
+        from pdf2data.pdf2data_pipeline import PDF2Data
+        pdf2data_pipeline: PDF2Data = PDF2Data(layout_model=layout_model, 
+                                               layout_model_threshold=model_threshold,  
+                                               device=device, 
+                                               input_folder=input_folder, 
+                                               output_folder=output_folder,
+                                               extract_tables=False,
+                                               extract_figures=False)
+        pdf2data_pipeline.pdf_transform()
         """mask: LayoutParser = LayoutParser(
             model=layout_model, model_threshold=model_threshold, device_type=device_type
         )

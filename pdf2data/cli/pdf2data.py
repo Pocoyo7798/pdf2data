@@ -24,7 +24,7 @@ from pdf2data.metadata import Metadata
 )
 @click.option(
     "--layout_model",
-    default="DocLayout-YOLO-DocStructBench",
+    default="PP-DocLayout-L",
     help="model used to determine the overall layout",
 )
 @click.option(

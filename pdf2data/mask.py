@@ -134,6 +134,7 @@ class LayoutParser(BaseModel):
             y1: float = entry[1].item() / height * pdf_height
             y2: float = entry[3].item() / height * pdf_height
             entry_type = labels[int(entry[5].item())]
+            print(entry_type)
             if entry_type in TEXT_WORDS_REGISTRY:
                 boxes.append([x1, y1, x2, y2])
                 scores.append(entry[4].item())
@@ -163,6 +164,10 @@ class LayoutParser(BaseModel):
                 boxes.append([x1, y1, x2, y2])
                 scores.append(entry[4].item())
                 types.append("Table Footnote")
+            elif entry_type in EQUATION_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry[4].item())
+                types.append("Equation")
         return {
             "boxes": boxes,
             "scores": scores,
@@ -258,6 +263,10 @@ class LayoutParser(BaseModel):
                 boxes.append([x1, y1, x2, y2])
                 scores.append(entry["score"])
                 types.append("Equation")
+            elif entry_type in REFERENCES_WORDS_REGISTRY:
+                boxes.append([x1, y1, x2, y2])
+                scores.append(entry["score"])
+                types.append("Reference")
         return {
             "boxes": boxes,
             "scores": scores,
@@ -507,9 +516,9 @@ class LayoutParser(BaseModel):
 
 class TableStructureParser(BaseModel):
     model: str
-    model_threshold: float = 0.7
-    zoom: float = 1.3
-    iou_lines: float = 0.05
+    model_threshold: float = 0.3
+    zoom: float = 1.5
+    iou_lines: float = 0.5
     iou_struct: float = 0.02
     iou_vert_words: float = 0.15
     brightness: float = 1
@@ -579,8 +588,7 @@ class TableStructureParser(BaseModel):
 
     def get_table_structure(
         self,
-        pdf: Any,
-        page_index: int,
+        page: Any,
         table_coords: List[List[float]],
         corrected_table_coords: List[List[float]],
         word_boxes: Dict[str, List[List[float]]] = {},
@@ -603,12 +611,11 @@ class TableStructureParser(BaseModel):
         Dict[str, List[List[float]]]
             A dicitonary containing the rows a collumns ordered
         """
-        page_for_zoom: Any = pdf[page_index]
         # Correct the tablle coordinates acording the the page size
         table_rect: fitz.Rect = fitz.Rect(corrected_table_coords[0], corrected_table_coords[1], corrected_table_coords[2], corrected_table_coords[3])
         # apply zoom to increase resolution
         mat: fitz.Matrix = fitz.Matrix(self.zoom, self.zoom)
-        image: Any = page_for_zoom.get_pixmap(matrix=mat, clip=table_rect)
+        image: Any = page.get_pixmap(matrix=mat, clip=table_rect)
         image.save("image.png")
         structure_dict: Dict[str, Any] = self.table_image_structure_tatr("image.png", corrected_table_coords, table_coords)
         rows: List[List[float]] = structure_dict["row_boxes"]
@@ -687,4 +694,5 @@ TITLE_WORDS_REGISTRY: set = set(["Title", "title", "doc_title", "paragraph_title
 FIGURE_CAPTIONS_WORDS_REGISTRY: set = set(["figure_caption", "figure_caption", "figure_title", "chart_title"])
 TABLE_CAPTIONS_WORDS_REGISTRY: set = set(["table_caption", "table_caption", "table_title"])
 TABLE_FOOTNOTE_WORDS_REGISTRY: set = set(["table_footnote", "footnotes"])
-EQUATION_WORDS_REGISTRY: set = set(["formula"])
+EQUATION_WORDS_REGISTRY: set = set(["formula", "isolate_formula"])
+REFERENCES_WORDS_REGISTRY: set = set(["reference"])

@@ -114,7 +114,7 @@ import click
 )
 @click.option(
     "--struct_model",
-    default=None,
+    default="microsoft/table-structure-recognition-v1.1-all",
     help="table structure detection model",
 )
 @click.option(
@@ -179,8 +179,18 @@ def block_extractor(
     letter_ratio: float,
 ) -> None:
     if pipeline == "NotDefined":
-        if os.path.isdir(output_folder) is False:
-            os.mkdir(output_folder)
+        from pdf2data.pdf2data_pipeline import PDF2Data
+        pdf2data_pipeline: PDF2Data = PDF2Data(layout_model=layout_model, 
+                                                layout_model_threshold=layout_model_threshold,
+                                                table_model=table_model,
+                                                table_model_threshold=table_model_threshold,
+                                                table_structure_model=struct_model,
+                                                device=device, 
+                                                input_folder=input_folder, 
+                                                output_folder=output_folder,
+                                                extract_text=False,
+                                                extract_equations=False)
+        pdf2data_pipeline.pdf_transform()
         """file_list: List[str] = get_doc_list(input_folder, "pdf")
         extractor: BlockExtractor = BlockExtractor(
             ocr_model=ocr_model,
