@@ -13,7 +13,7 @@ from pdf2data.support import get_doc_list
 @click.argument("type", type=str)
 @click.option(
     "--string_threshold",
-    default=0.85,
+    default=0.6,
     help="similarity threshold between strings",
 )
 @click.option(
