@@ -1,16 +1,10 @@
 import os
 from typing import Any, Dict, List
 import json
-#import shutil
 import time
 
 import click
 
-#import PyPDF2
-#from pdf2data.block import BlockExtractor
-#from pdf2data.mask import LayoutParser
-#from pdf2data.support import get_doc_list
-#from pdf2data.text import TextExtractor, TextFileGenerator
 from pdf2data.references import References
 from pdf2data.metadata import Metadata
 

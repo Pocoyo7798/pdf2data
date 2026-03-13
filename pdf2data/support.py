@@ -1,5 +1,4 @@
 import os
-from difflib import SequenceMatcher
 from io import BytesIO
 from typing import Any, Container, Dict, List, Optional
 from Levenshtein import ratio
@@ -16,6 +15,7 @@ from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
 from trieregex import TrieRegEx as TRE
+from rapidfuzz import fuzz
 
 class Latex2Table(BaseModel):
     _replace_regex: Optional[re.Pattern] = PrivateAttr(default=None)
@@ -538,7 +538,7 @@ def verify_string_in_list(string: str, list_of_words: List[str]) -> bool:
         True if the string exists, False otherwise
     """
     for entry in list_of_words:
-        similarity: float = SequenceMatcher(None, entry, string).ratio()
+        similarity: float = fuzz.ratio(entry, string) / 100
         if similarity > 0.9:
             return True
     return False
@@ -1153,7 +1153,7 @@ def verify_string(ref_string: str, string: str, threshold: float=0.8) -> bool:
     """
     ref_string = ref_string.replace(' ', '').lower()
     string = string.replace(' ', '').lower()
-    similarity: float = SequenceMatcher(None, ref_string, string).ratio()
+    similarity: float = fuzz.ratio(ref_string, string) / 100
     if similarity >= threshold:
         return True
     return False

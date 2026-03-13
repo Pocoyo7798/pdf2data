@@ -447,7 +447,7 @@ class LayoutParser(BaseModel):
                         height,
                         pdf_height,
                         self.table_model_threshold,
-                        self._labels
+                        self._table_labels
                     )
                 elif self.table_model == "PP-DocLayout-L":
                     sec_layout: Dict[str, Any] = LayoutParser.generate_layout_pp_doc_block(
@@ -458,15 +458,6 @@ class LayoutParser(BaseModel):
                         height,
                         pdf_height,
                         self.model_threshold,
-                    )
-                else:
-                    sec_layout = LayoutParser.generate_layout_lp(
-                        self._table_model,
-                        page,
-                        width,
-                        pdf_width,
-                        height,
-                        pdf_height,
                     )
                 table_boxes2: List[List[float]] = sec_layout["table_boxes"]
                 table_scores2: List[float] = sec_layout["table_scores"]
@@ -518,11 +509,11 @@ class TableStructureParser(BaseModel):
     model: str
     model_threshold: float = 0.3
     zoom: float = 1.5
-    iou_lines: float = 0.5
+    iou_lines: float = 1.0
     iou_struct: float = 0.02
     iou_vert_words: float = 0.15
-    brightness: float = 1
-    contrast: float = 1
+    brightness: float = 1.0
+    contrast: float = 1.0
     _model: Any = PrivateAttr(default=None)
     _labels: Any = PrivateAttr(default=None)
     _device: Any = PrivateAttr(default=None)
@@ -628,7 +619,7 @@ class TableStructureParser(BaseModel):
                 row_scores,
                 max_output_size=1000,
                 iou_threshold=self.iou_lines,
-                score_threshold=float("-inf"),
+                score_threshold=tf.constant(float("-inf"), dtype=tf.float32),
                 name=None,
             )
             real_rows: List[List[float]] = []
@@ -642,7 +633,7 @@ class TableStructureParser(BaseModel):
                 collumns_scores,
                 max_output_size=1000,
                 iou_threshold=self.iou_lines,
-                score_threshold=float("-inf"),
+                score_threshold=tf.constant(float("-inf"), dtype=tf.float32),
                 name=None,
             )
             real_collumns: List[List[float]] = []

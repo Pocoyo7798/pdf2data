@@ -1,7 +1,6 @@
 from pdf2data.support import get_doc_list, verify_string, verify_string_block_list, verify_string_list, calc_metrics, get_block_info, verify_boxes, verify_table_strucuture, verify_lists, entries_similarity_horizontal, entries_similarity_vertical
 import json
 import shutil
-from difflib import SequenceMatcher
 import pandas as pd
 import numpy as np
 import os
@@ -9,6 +8,8 @@ from bs4 import BeautifulSoup as bs
 from PIL import Image
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
+from rapidfuzz import fuzz
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 class Evaluator(BaseModel):
     ref_folder: str
@@ -79,7 +80,6 @@ class Evaluator(BaseModel):
             total_tp_authors = total_tp_authors + tp_authors
             total_fp_authors = total_fp_authors + max(0, fp_authors)
             total_fn_authors = total_fn_authors + fn_authors
-            #similarity = SequenceMatcher(None, ref_authors[0], authors[0]).ratio()
             #print(f"ref_authors: {ref_authors}")
             #print(f"authors: {authors}")
             #print(similarity)
@@ -103,7 +103,8 @@ class Evaluator(BaseModel):
         total_error_type: int = 0
         total_correct_order: int = 0
         total_error_order: int = 0
-        all_similarities: int = []
+        BLEU_similarities: List[float] = []
+        Levenshtein_similarities: List[float] = []
         total_docs: int = len(doc_list)
         doc_number: int = 1
         for file in doc_list:
@@ -151,15 +152,18 @@ class Evaluator(BaseModel):
             ref_full_text: str = ' '.join(ref_full_text_list)
             ref_full_text = ref_full_text.replace('  ', ' ')
             full_text: str = ' '.join(full_text_list)
-            similarity_value = SequenceMatcher(None, ref_full_text, full_text).ratio()
-            all_similarities.append(similarity_value)
+            Levenshtein_similarity = fuzz.ratio(ref_full_text, full_text) / 100
+            BLEU_similarity = sentence_bleu([ref_full_text.split()], full_text.split())
+            Levenshtein_similarities.append(Levenshtein_similarity)
+            BLEU_similarities.append(BLEU_similarity)
         results: dict = {}
         type_accuracy = total_correct_type / (total_correct_type + total_error_type)
         order_accuracy = total_correct_order / (total_correct_order + total_error_order)
         results['Entries'] = calc_metrics(total_tp_lines, total_fp_lines, total_fn_lines)
         results['Types'] = {'Accuracy': type_accuracy}
         results['Order'] = {'Accuracy': order_accuracy}
-        results['Similarity'] = {'Accuracy' : np.average(all_similarities)}
+        results['Similarity'] = {'Levenshtein' : np.average(Levenshtein_similarities)
+                                 , 'BLEU': np.average(BLEU_similarities)}
         results_json = json.dumps(results, indent=4)
         with open(self.eval_file_path, "w") as f:
             f.write(results_json)

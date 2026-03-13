@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 import fitz
 import importlib_resources
 
-from pdf2data.block import (BlockExtractor, Figure, Table, TableReconstructor,
+from pdf2data.old_code.block import (BlockExtractor, Figure, Table, TableReconstructor,
                             TableWords)
 
 

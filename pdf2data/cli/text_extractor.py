@@ -3,10 +3,6 @@ from typing import Any, Dict, List, Optional
 
 import click
 
-#from pdf2data.mask import LayoutParser
-#from pdf2data.support import get_doc_list
-#from pdf2data.text import TextExtractor, TextFileGenerator
-
 
 @click.command()
 @click.argument("input_folder", type=str)
