@@ -178,8 +178,8 @@ class Evaluator(BaseModel):
         total_tp_table_structure: int = 0
         total_fp_table_structure: int = 0
         total_fn_table_structure: int = 0
-        entries_ratio_list_h: List[str] = []
-        entries_ratio_list_v: List[str] = []
+        entries_BLEU_list: List[str] = []
+        entries_Levenshtein_list: List[str] = []
         total_tp_table_row_indexes:int = 0
         total_fp_table_row_indexes: int = 0
         total_fn_table_row_indexes: int = 0
@@ -259,10 +259,10 @@ class Evaluator(BaseModel):
                     equal_structure = structure_evaluation['correct_structure']
                     if equal_structure is True:
                         correct_structure = correct_structure + 1
-                    entries_ratio_h = entries_similarity_horizontal(ref_structure, structure)
-                    entries_ratio_list_h.append(entries_ratio_h)
-                    entries_ratio_v = entries_similarity_vertical(ref_structure, structure)
-                    entries_ratio_list_v.append(entries_ratio_v)
+                    entries_BLEU = entries_similarity_vertical(ref_structure, structure, ratio_type="BLEU")
+                    entries_BLEU_list.append(entries_BLEU)
+                    entries_Levenshtein = entries_similarity_vertical(ref_structure, structure, ratio_type="Levenshtein")
+                    entries_Levenshtein_list.append(entries_Levenshtein)
                     collumn_evaluation = verify_lists(ref_column_headers, column_headers)
                     total_tp_table_column_headers = total_tp_table_column_headers + collumn_evaluation['true_positives']
                     total_fp_table_column_headers = total_fp_table_column_headers + collumn_evaluation['false_positives']
@@ -303,8 +303,8 @@ class Evaluator(BaseModel):
         results['table_structure'] = calc_metrics(total_tp_table_structure, total_fp_table_structure, total_fn_table_structure)
         results['table_structure']['accuracy'] = structure_accuracy
         results['entries'] = {}
-        results['entries']["horizontal similarity"] = np.average(entries_ratio_list_h)
-        results['entries']["vertical similarity"] = np.average(entries_ratio_list_v)
+        results['entries']["BLEU"] = np.average(entries_BLEU_list)
+        results['entries']["Levenshtein"] = np.average(entries_Levenshtein_list)
         results_json = json.dumps(results, indent=4)
         with open(self.eval_file_path, "w") as f:
             f.write(results_json)
