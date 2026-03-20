@@ -18,8 +18,8 @@ from pdf2data.support import get_doc_list
 )
 @click.option(
     "--box_threshold",
-    default=0.6,
-    help="similarity threshold between strings",
+    default=0.5,
+    help="similarity threshold between boxes",
 )
 
 def evaluator(ref_folder: str, results_folder: str, eval_file_path: str, type: str, string_threshold: float, box_threshold: float):
