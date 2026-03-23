@@ -12,6 +12,7 @@ from pdf2data import text
 class Upgrader(BaseModel):
     correct_unicodes: bool = True
     merge_figures: bool = True
+    all_documents: bool = True
     distance_threshold: float = 50.0
     _unicode_regex: re.Pattern = PrivateAttr(default=None)
     
@@ -108,11 +109,7 @@ class Upgrader(BaseModel):
 
         return result
 
-    def upgrade(self, input_folder) -> None:
-        folder_list = os.listdir(input_folder)
-        output_folder_path = input_folder + "_upgraded"
-        if not os.path.exists(output_folder_path):
-            os.makedirs(output_folder_path)
+    def upgrade_all(self, input_folder, folder_list, output_folder_path) -> None:
         for folder in folder_list:
             content_file_path = os.path.join(input_folder, folder, f"{folder}_content.json")
             with open(content_file_path, "r") as content_file:
@@ -125,6 +122,31 @@ class Upgrader(BaseModel):
             os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
             with open(output_file_path, "w") as output_file:
                 json.dump(document_content, output_file, indent=4)
+
+    def upgrade_partial(self, input_folder, file_list, output_folder_path) -> None:
+        for file in file_list:
+            if file.endswith("_content.json"):
+                content_file_path = os.path.join(input_folder, file)
+                with open(content_file_path, "r") as content_file:
+                    document_content = json.load(content_file)
+                if self.correct_unicodes:
+                    document_content["blocks"] = self.correct_unicodes_in_blocks(document_content["blocks"])
+                if self.merge_figures:
+                    document_content["blocks"] = self.merge_close_figures(document_content["blocks"])
+                output_file_path = os.path.join(output_folder_path, file)
+                os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+                with open(output_file_path, "w") as output_file:
+                    json.dump(document_content, output_file, indent=4)
+
+    def upgrade(self, input_folder) -> None:
+        folder_list = os.listdir(input_folder)
+        output_folder_path = input_folder + "_upgraded"
+        if not os.path.exists(output_folder_path):
+            os.makedirs(output_folder_path)
+        if self.all_documents:
+            self.upgrade_all(input_folder, folder_list, output_folder_path)
+        else:
+            self.upgrade_partial(input_folder, folder_list, output_folder_path)
 
 REPLACEMENTS = {
     "\ufb02": "fl",

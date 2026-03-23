@@ -96,7 +96,8 @@ setup(
             "pdf2data_detect_image=pdf2data.cli.table_detector:main",
             "pdf2data=pdf2data.cli.pdf2data:main",
             "pdf2data_find_blocks=pdf2data.cli.block_finder:main",
-            "pdf2data_find_text=pdf2data.cli.text_finder:main"
+            "pdf2data_find_text=pdf2data.cli.text_finder:main",
+            "upgrade=pdf2data.cli.upgrade:main"
         ],
     },
     install_requires=requirements,
