@@ -1,0 +1,235 @@
+{
+  "sample": {
+    "keywords": [
+      ["sample", 2.0], ["catalyst", 2.0], ["zeolite", 2.0],
+      ["zeolites", 2.0], ["samples", 2.0], ["material", 2.0],
+      ["support", 2.0]
+    ],
+    "units": [],
+    "default_unit": "",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "yield": {
+    "keywords": [["yield", 2.0]],
+    "units": ["%"],
+    "default_unit": "%",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "external_area": {
+    "keywords": [
+      ["mes", 1.0], ["s", 1.0],
+      ["surface", 1.0], ["area", 1.0], ["external", 1.0]
+    ],
+    "units": ["m2/g", "m2g-1", "m2 g-1", "m2.g-1"],
+    "default_unit": "m2/g",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "micropore_area": {
+    "keywords": [
+      ["smic", 2.0], ["s", 1.0], ["mic", 1.0], ["area", 1.0]
+    ],
+    "units": ["m2/g", "m2g-1", "m2 g-1", "m2.g-1"],
+    "default_unit": "m2/g",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "surface_area": {
+    "keywords": [
+      ["surface", 1.0], ["area", 1.0],
+      ["bet", 2.0], ["total", 1.0],
+      ["s", 1.0]
+    ],
+    "units": ["m2/g", "m2g-1", "m2.g-1", "m2 g-1"],
+    "default_unit": "m2/g",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "mesopore_volume": {
+    "keywords": [
+      ["v", 1.0], ["mes", 1.0],
+      ["volume", 1.0],
+      ["ext", 1.0]
+    ],
+    "units": [
+      "cm3/g", "cm3g-1", "cm3.g-1", "cm3 g-1",
+      "mm3/g", "mm3g-1", "mm3.g-1", "mm3 g-1"
+    ],
+    "default_unit": "cm3/g",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "micropore_volume": {
+    "keywords": [
+      ["v", 1.0], ["mic", 1.0],
+      ["volume", 1.0]
+    ],
+    "units": [
+      "cm3/g", "cm3g-1", "cm3.g-1", "cm3 g-1",
+      "mm3/g", "mm3g-1", "mm3.g-1", "mm3 g-1", "ml/g"
+    ],
+    "default_unit": "cm3/g",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "total_volume": {
+    "keywords": [
+      ["vtotal", 2.0], ["v", 1.0], ["total", 1.0],
+      ["volume", 1.0], ["pore", 1.0],
+      ["vp", 2.0], ["vt", 2.0]
+    ],
+    "units": [
+      "cm3/g", "cm3g-1", "cm3 g-1", "cm3.g-1",
+      "mm3/g", "mm3g-1", "mm3 g-1"
+    ],
+    "default_unit": "cm3/g",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "sio2_al2o3_ratio_gel": {
+    "keywords": [["sio2/al2o3", 1.0], ["gel", 1.0]],
+    "units": [],
+    "default_unit": "",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "sio2_al2o3_ratio": {
+    "keywords": [["sio2/al2o3", 2.0]],
+    "units": [],
+    "default_unit": "",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "si_al_ratio_filtrate": {
+    "keywords": [["filtrate", 1.0], ["si/al", 1.0]],
+    "units": [],
+    "default_unit": "",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "si_al_ratio": {
+    "keywords": [
+      ["si", 1.0], ["al", 1.0], ["molar", 1.0], ["ratio", 1.0]
+    ],
+    "units": [],
+    "default_unit": "",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "b_l_ratio": {
+    "keywords": [["b/l", 2.0]],
+    "units": [],
+    "default_unit": "",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": false
+  },
+  "l_b_ratio": {
+    "keywords": [["l/b", 2.0]],
+    "units": [],
+    "default_unit": "",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": false
+  },
+  "lewis_sites": {
+    "keywords": [
+      ["nlewis", 2.0], ["lewis", 2.0], ["lpy", 2.0],
+      ["pyl", 2.0], ["clewis", 2.0], ["cl", 2.0], ["l", 2.0]
+    ],
+    "units": [
+      "μmol/g", "mmol g-1", "umol/g", "umol.g-1",
+      "mmolg-1", "lmol g-1", "umolg-1"
+    ],
+    "default_unit": "umol/g",
+    "threshold": 2.0,
+    "limit_words": true,
+    "unique": false
+  },
+  "bronsted_sites": {
+    "keywords": [
+      ["nbronstead", 2.0], ["bronstead", 2.0], ["bronsted", 2.0],
+      ["bpy", 2.0], ["pyh", 2.0], ["cbronsted", 2.0], ["cb", 2.0],
+      ["b", 2.0]
+    ],
+    "units": [
+      "μmol/g", "mmol g-1", "umol/g", "umol.g-1",
+      "mmolg-1", "lmol g-1", "umolg-1"
+    ],
+    "default_unit": "umol/g",
+    "threshold": 2.0,
+    "limit_words": true,
+    "unique": false
+  },
+  "time": {
+    "keywords": [
+      ["t", 1.0], ["(min)", 1.0], ["(h)", 1.0],
+      ["time", 2.0], ["period", 2.0], ["duration", 2.0]
+    ],
+    "units": ["min", "h"],
+    "default_unit": "min",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "temperature": {
+    "keywords": [
+      ["t", 1.0], ["temperature", 2.0], ["(k)", 1.0], ["(oc)", 1.0], ["(c)", 1.0]
+    ],
+    "units": ["k", "oc", "c"],
+    "default_unit": "°C",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "naoh_c": {
+    "keywords": [
+      ["naoh", 2.0], ["c", 1.0], ["concentration", 2.0], ["(m)", 1.0]
+    ],
+    "units": ["m"],
+    "default_unit": "M",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "crystallinity": {
+    "keywords": [
+      ["crystallinity", 2.0], ["cristallinity", 2.0]
+    ],
+    "units": ["%"],
+    "default_unit": "%",
+    "threshold": 2.0,
+    "limit_words": false,
+    "unique": true
+  },
+  "Si": {
+    "keywords": [["nsi", 2.0], ["si", 2.0]],
+    "units": ["wt%", "umol/g", "mmol/g"],
+    "default_unit": "wt%",
+    "threshold": 2.0,
+    "limit_words": true,
+    "unique": true
+  },
+  "Al": {
+    "keywords": [["nal", 2.0], ["al", 2.0]],
+    "units": ["wt%", "umol/g", "mmol/g", "umol.g-1"],
+    "default_unit": "wt%",
+    "threshold": 2.0,
+    "limit_words": true,
+    "unique": true
+  }
+}
