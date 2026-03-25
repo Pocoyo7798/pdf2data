@@ -378,6 +378,8 @@ class PDF2Data(Pipeline):
                 elif block_type == "Table" and self.extract_tables:
                     block_data = self.generate_table_block(doc_page, page_number, i, box_coords, page_size, image_folder_path, file_path, file_name, table_amount, page, doc_layout["boxes"][page_number-1])
                     table_amount += 1
+                elif block_type == "Reference" and self.extract_references:
+                    reference_list.extend(self.get_string_from_box(doc_page, box_coords, page_size).split("\n"))
                 if block_data != {}:
                     blocks_info["blocks"].append(block_data)
                 i += 1

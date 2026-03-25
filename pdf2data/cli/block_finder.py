@@ -35,7 +35,7 @@ def block_finder(input_folder: str, output_folder: str, keywords_file:str, gener
     results_path = f"{output_folder}/found_blocks.json"
     for doc in doc_list:
         print(doc)
-        blocks_path: str = f"{input_folder}/{doc}/{doc}_blocks.json"
+        blocks_path: str = f"{input_folder}/{doc}/{doc}_content.json"
         blocks = finder.find(blocks_path, tables=find_tables, figures=find_figures)
         final_results_dict[doc] = blocks
     result_json = json.dumps(final_results_dict, indent=4)

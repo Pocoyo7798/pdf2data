@@ -62,21 +62,21 @@ class BlockFinder(BaseModel):
         blocks_set: set = set(blocks_list)
         with open(blocks_file_path, "r") as f:
             blocks_dict: Dict[str, Any] = json.load(f)
-        doi: str = blocks_dict["doi"]
+        doi: str = blocks_dict["metadata"]["doi"]
         blocks: List[Dict[str, Any]] = blocks_dict["blocks"]
         blocks_found: List[Dict[str, Any]] = []
         for block in blocks:
             keywords_found: List[str] = []
             if block["type"] not in blocks_set:
                 pass
-            elif block["legend"] == "":
+            elif block["caption"] == "":
                 block_str: str = ""
                 for row in block["block"]:
                     for entry in row:
                         block_str += f" {entry}"
                 keywords_found = self._regex.findall(block_str)
             else:
-                keywords_found = self._regex.findall(block["legend"])
+                keywords_found = self._regex.findall(block["caption"])
             if len(keywords_found) > 0:
                 blocks_found.append(block)
         if len(blocks_found) > 0 or self.generic_keywords_file_path is None:
@@ -85,7 +85,7 @@ class BlockFinder(BaseModel):
             for block in blocks:
                 keywords_found: List[str] = []
                 if block["type"] in blocks_set:
-                    keywords_found = self._generic_regex.findall(block["legend"])
+                    keywords_found = self._generic_regex.findall(block["caption"])
                 if len(keywords_found) > 0:
                     blocks_found.append(block)
         return {"blocks" : blocks_found, "doi": doi}
@@ -104,48 +104,6 @@ class TextFinder(BaseModel):
         keywords_list = list(self._weights.keys())
         tre: TRE = TRE(*keywords_list)
         self._regex = re.compile(f"\\b{tre.regex()}\\b", re.IGNORECASE | re.MULTILINE)
-
-    def improve_text_dict(self, text_dict):
-        combine = False
-        combined_text = ""
-        i = 0
-        new_text_dict = {"Text": [], "Type": []}
-        for text in text_dict["Text"]:
-            if combine is True:
-                if text[-1].islower() and text_dict["Type"] == "paragraph":
-                    combined_text += f" {text}"
-                elif text_dict["Type"][i] == "section_header":
-                    new_text_dict["Text"].append(combined_text)
-                    new_text_dict["Type"].append("paragraph")
-                    combined_text =  ""
-                    combine = False
-                    new_text_dict["Text"].append(text)
-                    new_text_dict["Type"].append("section_header")
-                elif text[-1].isnumeric() or text[-1] in ["]", "."]:
-                    new_text_dict["Text"].append(combined_text)
-                    new_text_dict["Type"].append("paragraph")
-                    combined_text =  ""
-                    combine = False
-                    new_text_dict["Text"].append(text)
-                    new_text_dict["Type"].append("paragraph")
-                else:
-                    new_text_dict["Text"].append(combined_text)
-                    new_text_dict["Type"].append("paragraph")
-                    combined_text =  text
-            else:
-                if text_dict["Type"][i] == "section_header":
-                    combine = False
-                    new_text_dict["Text"].append(text)
-                    new_text_dict["Type"].append("section_header")
-                elif text[-1].isnumeric() or text[-1] in ["]", "."]:
-                    combine = False
-                    new_text_dict["Text"].append(text)
-                    new_text_dict["Type"].append("paragraph")
-                else:
-                    combined_text =  text
-                    combine = True
-            i += 1
-        return new_text_dict
 
     def find(self, text_file_path: str, word_count_threshold: int, paragraph: bool=True, section_header: bool=False, count_duplicates:bool = False) -> Dict[str, Any]:
         """finds all the text blocks with a word count over a threshold
@@ -168,8 +126,7 @@ class TextFinder(BaseModel):
         """
         with open(text_file_path, "r") as f:
             text_dict: Dict[str, Any] = json.load(f)
-        text_dict = self.improve_text_dict(text_dict)
-        text_list = text_dict["Text"]
+        block_list = text_dict["blocks"]
         type_list: List[str] = []
         if paragraph is True:
             type_list.append("paragraph")
@@ -178,11 +135,11 @@ class TextFinder(BaseModel):
         type_set: set = set(type_list)
         j = 0
         text_found: List[str] = []
-        for text in text_list:
+        for block in block_list:
             keywords_found: List[str] = []
             word_count = 0
-            if text_dict["Type"][j] in type_set:
-                keywords_found = self._regex.findall(text)
+            if block["type"] in type_set:
+                keywords_found = self._regex.findall(block["content"])
             already_found: Dict[str, Any] = {}
             for keyword in keywords_found:
                 if count_duplicates is False:
@@ -195,7 +152,7 @@ class TextFinder(BaseModel):
                     word_count += self._weights[keyword.lower()]
             if word_count > word_count_threshold:
                 print(keywords_found)
-                text_found.append(text)
+                text_found.append(block["content"])
             j += 1
         return {"text": text_found}
 

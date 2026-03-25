@@ -110,7 +110,11 @@ class Upgrader(BaseModel):
         return result
 
     def upgrade_all(self, input_folder, folder_list, output_folder_path) -> None:
+        doc_number = 1
         for folder in folder_list:
+            if folder == "extraction_metadata.json":
+                continue
+            print(f"Upgrading document {doc_number}")
             content_file_path = os.path.join(input_folder, folder, f"{folder}_content.json")
             with open(content_file_path, "r") as content_file:
                 document_content = json.load(content_file)
@@ -122,10 +126,13 @@ class Upgrader(BaseModel):
             os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
             with open(output_file_path, "w") as output_file:
                 json.dump(document_content, output_file, indent=4)
+            doc_number += 1
 
     def upgrade_partial(self, input_folder, file_list, output_folder_path) -> None:
+        doc_number = 1
         for file in file_list:
             if file.endswith("_content.json"):
+                print(f"Upgrading document {doc_number}")
                 content_file_path = os.path.join(input_folder, file)
                 with open(content_file_path, "r") as content_file:
                     document_content = json.load(content_file)
@@ -137,6 +144,7 @@ class Upgrader(BaseModel):
                 os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
                 with open(output_file_path, "w") as output_file:
                     json.dump(document_content, output_file, indent=4)
+                doc_number += 1
 
     def upgrade(self, input_folder) -> None:
         folder_list = os.listdir(input_folder)

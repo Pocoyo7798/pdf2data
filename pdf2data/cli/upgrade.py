@@ -26,7 +26,7 @@ from pdf2data.upgrade import Upgrader
 )
 @click.option(
     "--distance_threshold",
-    default=50.0,
+    default=25.0,
     help="distance threshold to merge figures, in pixels",
 )
 def upgrader(input_folder: str,

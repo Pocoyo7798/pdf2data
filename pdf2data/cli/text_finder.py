@@ -17,18 +17,13 @@ from pdf2data.keywords import TextFinder
     help="file containing generic keywords",
 )
 @click.option(
-    "--document_type",
-    default="full_document",
-    help="Indicate if you want to analyse the full document folder or just the text file",
-)
-@click.option(
     "--find_paragraphs",
     default=True,
     help="True to look for paragraph type text, False otherwise.",
 )
 @click.option(
     "--find_section_headers",
-    default=False,
+    default=True,
     help="True to look for section headers type text, False otherwise.",
 )
 @click.option(
@@ -37,23 +32,15 @@ from pdf2data.keywords import TextFinder
     help="True to consider duplicates in the word count",
 )
 
-def text_finder(input_folder: str, output_folder: str, keywords_file: str, word_count_threshold: int, document_type: str,find_paragraphs: bool, find_section_headers:bool, count_duplicates:bool) -> None:
+def text_finder(input_folder: str, output_folder: str, keywords_file: str, word_count_threshold: int,find_paragraphs: bool, find_section_headers:bool, count_duplicates:bool) -> None:
     if os.path.isdir(output_folder) is False:
         os.mkdir(output_folder)
     finder: TextFinder = TextFinder(keywords_file_path=keywords_file)
-    if document_type == "full_document":
-        doc_list: List[str] = get_doc_list(input_folder, "")
-    else:
-        doc_list: List[str] = get_doc_list(input_folder, "json")
+    doc_list: List[str] = get_doc_list(input_folder, "")
     results_path = f"{output_folder}/found_texts.txt"
     name_path = f"{output_folder}/found_texts_doc_names.txt"
-    print(doc_list)
     for doc in doc_list:
-        print(doc)
-        if document_type == "full_document":
-            text_path: str = f"{input_folder}/{doc}/{doc}_text.json"
-        else:
-            text_path: str = f"{input_folder}/{doc}"
+        text_path: str = f"{input_folder}/{doc}/{doc}_content.json"
         results: Dict[str, Any] = finder.find(text_path, word_count_threshold, paragraph=find_paragraphs, section_header=find_section_headers, count_duplicates=count_duplicates)
         text_list = results["text"]
         for text in text_list:
