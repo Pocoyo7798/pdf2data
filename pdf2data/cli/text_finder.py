@@ -39,6 +39,10 @@ def text_finder(input_folder: str, output_folder: str, keywords_file: str, word_
     doc_list: List[str] = get_doc_list(input_folder, "")
     results_path = f"{output_folder}/found_texts.txt"
     name_path = f"{output_folder}/found_texts_doc_names.txt"
+    if os.path.isfile(results_path):
+        os.remove(results_path)
+    if os.path.isfile(name_path):
+        os.remove(name_path)
     for doc in doc_list:
         text_path: str = f"{input_folder}/{doc}/{doc}_content.json"
         results: Dict[str, Any] = finder.find(text_path, word_count_threshold, paragraph=find_paragraphs, section_header=find_section_headers, count_duplicates=count_duplicates)

@@ -341,6 +341,7 @@ def pdf2data(input_folder: str,
         content_json = json.dumps(new_content_dict, indent=4)
         with open(file_folder + "/" + folder + "_content.json", "w") as f:
             f.write(content_json)
+        number += 1
     full_time = time.time() - start_time / 60
     extraction_metadata_dict = {"pipeline": pipeline, "document_extraction_time": document_extraction_time, "full_time": full_time}
     with open(output_folder + "/extraction_metadata.json", "w") as f:

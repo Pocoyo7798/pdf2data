@@ -97,7 +97,8 @@ setup(
             "pdf2data=pdf2data.cli.pdf2data:main",
             "pdf2data_find_blocks=pdf2data.cli.block_finder:main",
             "pdf2data_find_text=pdf2data.cli.text_finder:main",
-            "upgrade=pdf2data.cli.upgrade:main"
+            "upgrade=pdf2data.cli.upgrade:main",
+            "extract_tables=pdf2data.cli.extract_table_data:main"
         ],
     },
     install_requires=requirements,

@@ -360,6 +360,7 @@ class PDF2Data(Pipeline):
         blocks_info: Dict[str, List[Dict[str, Any]]] = {"blocks": []}
         document = fitz.open(file_path)
         pdf = PyPDF2.PdfReader(file_path)
+        end_extraction = False
         for page in doc_layout["types"]:
             i = 0
             doc_page = document[page_number - 1]
@@ -369,6 +370,9 @@ class PDF2Data(Pipeline):
                 block_data: Dict[str, Any] = {}
                 if block_type in ["Text", "Title"] and self.extract_text:
                     block_data = self.generate_text_block(doc_page, page_number, box_coords, block_type, page_size)
+                    if block_data["content"].lower().strip() in ["references", "bibliography", "reference"] and self.layout_model == "DocLayout-YOLO-DocStructBench":
+                        end_extraction = True
+                        break
                 elif block_type == "Equation" and self.extract_equations:
                     block_data = self.generate_equation_block(doc_page, page_number, box_coords, page_size, image_folder_path, file_path, file_name, equation_amount)
                     equation_amount += 1
@@ -384,6 +388,8 @@ class PDF2Data(Pipeline):
                     blocks_info["blocks"].append(block_data)
                 i += 1
             page_number += 1
+            if end_extraction:
+                break
         block_info_json = json.dumps(blocks_info, indent=4)
         with open(results_folder + "/" + f"{file_name}_content.json", "w") as f:
             f.write(block_info_json)

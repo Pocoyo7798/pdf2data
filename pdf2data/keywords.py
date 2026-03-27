@@ -152,7 +152,7 @@ class TextFinder(BaseModel):
                     word_count += self._weights[keyword.lower()]
             if word_count > word_count_threshold:
                 print(keywords_found)
-                text_found.append(block["content"])
+                text_found.append(block["content"].replace("\n", " ").strip())
             j += 1
         return {"text": text_found}
 
