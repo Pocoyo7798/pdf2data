@@ -305,13 +305,26 @@ class PaddlePPStructure(Pipeline):
             table_object.caption = ""
         elif blocks_list[index + 1]["block_label"] == "table_title":
             table_object.caption = blocks_list[index + 1]["block_content"]
+            table_object.caption_box = self.correct_box_size(
+                blocks_list[index + 1]["block_bbox"],
+                page_size,
+                file_path,
+                page_number,
+            )
         elif blocks_list[index - 1]["block_label"] == "table_title":
             table_object.caption = blocks_list[index - 1]["block_content"]
+            table_object.caption_box = self.correct_box_size(
+                blocks_list[index - 1]["block_bbox"],
+                page_size,
+                file_path,
+                page_number,
+            )
         else:            
             table_object.caption = ""
         table_object.block = self.html_table_to_list(block["block_content"])
         old_table_block = table_object.block.copy()
         table_object.block = self.correct_table_structure(table_object.block)
+        table_object.cell_boxes = self.get_uniform_cell_boxes(table_object.box, table_object.block)
         if len(old_table_block) != len(table_object.block):
             table_object.caption = old_table_block[0][0]
         table_object.column_headers = self.find_column_headers(table_object.block)

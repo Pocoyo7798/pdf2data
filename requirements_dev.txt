@@ -1,12 +1,45 @@
-pip==19.2.3
-bump2version==0.5.11
-wheel==0.33.6
-watchdog==0.9.0
-flake8==3.7.8
-tox==3.14.0
-coverage==4.5.4
-Sphinx==1.8.5
-twine==1.14.0
-Click==7.1.2
-pytest==6.2.4
-black==21.7b0
+# Web Server
+fastapi
+uvicorn
+python-multipart
+
+# pdf2data core runtime dependencies (same as pip install -e ".[pdf2data_pipeline]")
+Click<=8.3.1
+PyMuPDF<=1.26.7
+pylatexenc<=2.10
+pydantic<=2.12.5
+beautifulsoup4<=4.14.3
+pdf2doi<=1.7
+Levenshtein<=0.27.3
+trieregex<=1.0.0
+bibtexparser<=1.4.3
+pypdf>=3.1.0
+transformers==4.46.3
+huggingface_hub==0.26.2
+tokenizers==0.20.3
+nltk<=3.8.1
+
+# pdf2data_pipeline extra dependencies
+torch<=2.10.0
+opencv-python<=4.13.0.92
+tensorflow<=2.20.0
+doclayout_yolo<=0.0.4
+pdf2image<=1.17.0
+paddleocr<=3.4.0
+paddlepaddle<=3.3.0
+
+# MinerU dependencies
+mineru[pipeline]
+accelerate
+
+# Development Tools
+bump2version>=1.0.1
+wheel>=0.45.0
+watchdog>=4.0.0
+flake8>=7.0.0
+tox>=4.0.0
+coverage>=7.0.0
+Sphinx>=7.0.0
+twine>=5.0.0
+pytest>=8.0.0
+black>=24.0.0

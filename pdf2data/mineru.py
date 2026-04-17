@@ -8,6 +8,9 @@ import shutil
 
 class MinerU(Pipeline):
     pdf_copies_folder: Optional[str] = None
+    mineru_backend: str = "pipeline"
+    mineru_method: str = "auto"
+    mineru_lang: str = "en"
     _folder_list: List[str] = PrivateAttr(default=[])
     _reference_list: List[str] = PrivateAttr(default=[])
 
@@ -77,17 +80,25 @@ class MinerU(Pipeline):
             
     def extract_pdfs(self) -> None:
         print(os.listdir(self.pdf_copies_folder))
-        subprocess.run(
-            [
-                "mineru",
-                "-p",
-                self.pdf_copies_folder,
-                "-o",
-                self.output_folder,
-                "-l",
-                "en",
-            ]
-        )
+        command = [
+            "mineru",
+            "-p",
+            self.pdf_copies_folder,
+            "-o",
+            self.output_folder,
+            "-l",
+            self.mineru_lang,
+            "-b",
+            self.mineru_backend,
+            "-m",
+            self.mineru_method,
+        ]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            stdout = result.stdout.strip()
+            details = stderr if stderr != "" else stdout
+            raise RuntimeError(f"MinerU command failed ({result.returncode}): {details}")
     
     def generate_table_block(self, 
                              initial_block: Dict[str, Any],
@@ -106,6 +117,9 @@ class MinerU(Pipeline):
         for block in blocks:
             if block["type"] == "table_caption":
                 table_object.caption = self.get_text_from_lines(block["lines"])
+                caption_bbox = block.get("bbox")
+                if caption_bbox is not None:
+                    table_object.caption_box = self.correct_box_size(caption_bbox, page_size, pdf_file_path, page_number)
             elif block["type"] == "table_footnote":
                 table_object.footnotes = self.get_text_from_lines(block["lines"])
             elif block["type"] == "table_body":
@@ -114,6 +128,7 @@ class MinerU(Pipeline):
             return None
         old_table_block = table_object.block.copy()
         table_object.block = self.correct_table_structure(table_object.block)
+        table_object.cell_boxes = self.get_uniform_cell_boxes(table_object.box, table_object.block)
         if len(old_table_block) != len(table_object.block):
             table_object.caption = old_table_block[0][0]
         table_object.column_headers = self.find_column_headers(table_object.block)
@@ -353,4 +368,9 @@ class MinerU(Pipeline):
         if os.path.exists(self.pdf_copies_folder):
                     shutil.rmtree(self.pdf_copies_folder)
         self._folder_list = os.listdir(self.output_folder)
+        if len(self._folder_list) == 0:
+            raise RuntimeError(
+                "MinerU finished without output folders. "
+                "Try backend='pipeline' and check MinerU logs for parse errors."
+            )
         self.generate_blocks_from_folder()

@@ -71,15 +71,23 @@ class MinerUVLM(Pipeline):
             table_object.caption = ""
             if blocks_list[index - 1]["type"] == "table_caption":
                 table_object.caption = self._latex_parser.latex_to_text(blocks_list[index - 1]["content"])
+                if "bbox" in blocks_list[index - 1]:
+                    table_object.caption_box = self.correct_box_size(blocks_list[index - 1]["bbox"], page_size, pdf_file_path, page_number)
         elif index < 1:
             table_object.caption = ""
             if blocks_list[index + 1]["type"] == "table_caption":
                 table_object.caption = self._latex_parser.latex_to_text(blocks_list[index + 1]["content"])
+                if "bbox" in blocks_list[index + 1]:
+                    table_object.caption_box = self.correct_box_size(blocks_list[index + 1]["bbox"], page_size, pdf_file_path, page_number)
         else:
             if blocks_list[index - 1]["type"] == "table_caption":
                 table_object.caption = self._latex_parser.latex_to_text(blocks_list[index - 1]["content"])
+                if "bbox" in blocks_list[index - 1]:
+                    table_object.caption_box = self.correct_box_size(blocks_list[index - 1]["bbox"], page_size, pdf_file_path, page_number)
             elif blocks_list[index + 1]["type"] == "table_caption":
                 table_object.caption = self._latex_parser.latex_to_text(blocks_list[index + 1]["content"])
+                if "bbox" in blocks_list[index + 1]:
+                    table_object.caption_box = self.correct_box_size(blocks_list[index + 1]["bbox"], page_size, pdf_file_path, page_number)
         if index >= len(blocks_list) - 1:
             table_object.footnotes = ""
         else:
@@ -88,6 +96,7 @@ class MinerUVLM(Pipeline):
         table_object.block = self.html_table_to_list(initial_block["content"])
         old_table_block = table_object.block.copy()
         table_object.block = self.correct_table_structure(table_object.block)
+        table_object.cell_boxes = self.get_uniform_cell_boxes(table_object.box, table_object.block)
         if len(old_table_block) != len(table_object.block):
             table_object.caption = old_table_block[0][0]
         table_object.column_headers = self.find_column_headers(table_object.block)

@@ -77,6 +77,33 @@ class Docling(Pipeline):
                         row_indexes.append(col)
         return table_block, column_headers, row_indexes
 
+    def get_caption_box_from_refs(self, refs: List[Dict[str, Any]]) -> Any:
+        caption_boxes: List[List[float]] = []
+        for ref_info in refs:
+            ref_value = ref_info.get("$ref")
+            if ref_value is None:
+                continue
+            text_dict = self._text_dict.get(ref_value)
+            if text_dict is None:
+                continue
+            for prov in text_dict.get("prov", []):
+                bbox = prov.get("bbox")
+                if bbox is None:
+                    continue
+                page_no = prov.get("page_no")
+                if page_no is None:
+                    continue
+                corrected = self.correct_boxes(
+                    bbox["l"],
+                    bbox["t"],
+                    bbox["r"],
+                    bbox["b"],
+                    self._page_dict_height[str(page_no)]["size"]["height"],
+                    bbox["coord_origin"],
+                )
+                caption_boxes.append(corrected)
+        return self.merge_boxes(caption_boxes)
+
     def generate_formula_block(self, formula_dict: Dict[str, Any], image_folder_path: str, file_path: str, number: int, doc_name: str) -> Dict[str, Any]:
         formula_object = Equation()
         formula_object.content = formula_dict["orig"]
@@ -160,6 +187,7 @@ class Docling(Pipeline):
         table_dict: Dict[str, Any] = self._table_dict[ref]
         table_object = Table()
         table_object.caption = self.get_text_from_list(table_dict["captions"])
+        table_object.caption_box = self.get_caption_box_from_refs(table_dict["captions"])
         table_object.footnotes = self.get_text_from_list(table_dict["footnotes"])
         table_object.page = table_dict["prov"][0]["page_no"]
         table_object.number = number
@@ -172,6 +200,7 @@ class Docling(Pipeline):
         table_object.block, table_object.column_headers, table_object.row_indexes = self.get_table_from_cells(table_dict["data"]["table_cells"])
         old_table_block = table_object.block.copy()
         table_object.block = self.correct_table_structure(table_object.block)
+        table_object.cell_boxes = self.get_uniform_cell_boxes(table_object.box, table_object.block)
         if len(old_table_block) != len(table_object.block):
             table_object.caption = old_table_block[0][0]
         table_object.filepath = self.snap_figure(image_folder_path,

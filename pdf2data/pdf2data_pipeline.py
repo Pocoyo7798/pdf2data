@@ -328,6 +328,9 @@ class PDF2Data(Pipeline):
         table_object.block = self._table_reconstructor.entry_by_entry(
             entries, table_structure
             )
+        rows = table_structure.get("rows", [])
+        columns = table_structure.get("collumns", table_structure.get("columns", []))
+        table_object.cell_boxes = self.get_cell_boxes_from_structure(rows, columns, table_object.block)
         table_object.column_headers = self.find_column_headers(table_object.block)
         table_object.row_indexes = self.find_row_indexes(table_object.block)
         table_object.filepath = self.snap_figure(image_folder_path, page, file_path, corrected_coords, table_amount, file_name, "table")
@@ -335,15 +338,19 @@ class PDF2Data(Pipeline):
             table_object.caption = ""
             if blocks_types_list[index - 1] == "Table Caption":
                 table_object.caption = self.get_string_from_box(doc_page, blocks_coords_list[index - 1], page_size)
+                table_object.caption_box = blocks_coords_list[index - 1]
         elif index < 1 and len(blocks_types_list) > 1:
             table_object.caption = ""
             if blocks_types_list[index + 1] == "Table Caption":
                 table_object.caption = self.get_string_from_box(doc_page, blocks_coords_list[index + 1], page_size)
+                table_object.caption_box = blocks_coords_list[index + 1]
         else:
             if blocks_types_list[index - 1] == "Table Caption":
                 table_object.caption = self.get_string_from_box(doc_page, blocks_coords_list[index - 1], page_size)
+                table_object.caption_box = blocks_coords_list[index - 1]
             elif blocks_types_list[index + 1] == "Table Caption":
                 table_object.caption = self.get_string_from_box(doc_page, blocks_coords_list[index + 1], page_size)
+                table_object.caption_box = blocks_coords_list[index + 1]
         if index >= len(blocks_types_list) - 1:
             table_object.footnotes = ""
         else:

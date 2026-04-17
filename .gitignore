@@ -104,3 +104,12 @@ ENV/
 # IDE settings
 .vscode/
 .idea/
+
+# Node.js (should not be in this repo)
+node_modules/
+package-lock.json
+
+# Build artifacts
+dist/
+
+api_token.txt

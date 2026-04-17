@@ -14,6 +14,9 @@ class Table(BaseModel):
     number: Optional[int] = None
     caption: str = ""
     block: Optional[List[List[str]]] = None
+    # Per-cell coordinates aligned with `block` rows and columns.
+    cell_boxes: Optional[List[List[Optional[List[float]]]]] = None
+    caption_box: Optional[List[float]] = None
     footnotes: Optional[str] = None
     column_headers: Optional[List[int]] = None
     row_indexes: Optional[List[int]] = None
@@ -53,6 +56,90 @@ class Pipeline(BaseModel):
     extract_equations: bool = True
     extract_references: bool = False
     _latex_parser: LatexNodes2Text = PrivateAttr(default=LatexNodes2Text())
+
+    def get_uniform_cell_boxes(
+        self,
+        table_box: Optional[List[float]],
+        table_block: Optional[List[List[str]]],
+    ) -> Optional[List[List[Optional[List[float]]]]]:
+        """Approximate cell boxes by splitting the table box into a regular grid."""
+        if table_box is None or table_block is None or len(table_block) == 0:
+            return None
+        if len(table_box) < 4:
+            return None
+
+        row_count = len(table_block)
+        col_count = max((len(row) for row in table_block), default=0)
+        if row_count == 0 or col_count == 0:
+            return None
+
+        x1, y1, x2, y2 = [float(v) for v in table_box[:4]]
+        row_height = (y2 - y1) / row_count
+        col_width = (x2 - x1) / col_count
+
+        cell_boxes: List[List[Optional[List[float]]]] = []
+        for row_index, row in enumerate(table_block):
+            row_boxes: List[Optional[List[float]]] = []
+            cell_count = len(row)
+            for col_index in range(cell_count):
+                row_boxes.append(
+                    [
+                        x1 + col_index * col_width,
+                        y1 + row_index * row_height,
+                        x1 + (col_index + 1) * col_width,
+                        y1 + (row_index + 1) * row_height,
+                    ]
+                )
+            cell_boxes.append(row_boxes)
+        return cell_boxes
+
+    def get_cell_boxes_from_structure(
+        self,
+        rows: List[List[float]],
+        columns: List[List[float]],
+        table_block: Optional[List[List[str]]] = None,
+    ) -> Optional[List[List[Optional[List[float]]]]]:
+        """Build per-cell boxes from detected table row/column boxes."""
+        if len(rows) == 0 or len(columns) == 0:
+            return None
+
+        max_rows = len(rows)
+        max_cols = len(columns)
+        if table_block is None:
+            target_rows = max_rows
+            row_lengths = [max_cols] * max_rows
+        else:
+            target_rows = min(len(table_block), max_rows)
+            row_lengths = [min(len(row), max_cols) for row in table_block[:target_rows]]
+
+        cell_boxes: List[List[Optional[List[float]]]] = []
+        for row_index in range(target_rows):
+            row_boxes: List[Optional[List[float]]] = []
+            for col_index in range(row_lengths[row_index]):
+                row_box = rows[row_index]
+                col_box = columns[col_index]
+                row_boxes.append(
+                    [
+                        float(col_box[0]),
+                        float(row_box[1]),
+                        float(col_box[2]),
+                        float(row_box[3]),
+                    ]
+                )
+            cell_boxes.append(row_boxes)
+        return cell_boxes
+
+    def merge_boxes(self, boxes: List[List[float]]) -> Optional[List[float]]:
+        """Return the enclosing box that contains all provided boxes."""
+        valid_boxes = [box for box in boxes if box is not None and len(box) >= 4]
+        if len(valid_boxes) == 0:
+            return None
+        return [
+            min(float(box[0]) for box in valid_boxes),
+            min(float(box[1]) for box in valid_boxes),
+            max(float(box[2]) for box in valid_boxes),
+            max(float(box[3]) for box in valid_boxes),
+        ]
     
     def find_column_headers(self, table_block: List[List[str]]) -> List[int]:
         """find the collumn headers as rows that do not have numbers"""
