@@ -113,3 +113,4 @@ package-lock.json
 dist/
 
 api_token.txt
+test_keywords.txt

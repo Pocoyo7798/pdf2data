@@ -62,21 +62,26 @@ class BlockFinder(BaseModel):
         blocks_set: set = set(blocks_list)
         with open(blocks_file_path, "r") as f:
             blocks_dict: Dict[str, Any] = json.load(f)
-        doi: str = blocks_dict["metadata"]["doi"]
+        metadata: Dict[str, Any] = blocks_dict.get("metadata", {})
+        doi: str = metadata.get("doi", "")
         blocks: List[Dict[str, Any]] = blocks_dict["blocks"]
         blocks_found: List[Dict[str, Any]] = []
         for block in blocks:
             keywords_found: List[str] = []
             if block["type"] not in blocks_set:
                 pass
-            elif block["caption"] == "":
+            else:
+                caption_text: str = block.get("caption", block.get("legend", ""))
+                if caption_text is None:
+                    caption_text = ""
+            if block["type"] in blocks_set and caption_text == "":
                 block_str: str = ""
-                for row in block["block"]:
+                for row in block.get("block", []):
                     for entry in row:
                         block_str += f" {entry}"
                 keywords_found = self._regex.findall(block_str)
-            else:
-                keywords_found = self._regex.findall(block["caption"])
+            elif block["type"] in blocks_set:
+                keywords_found = self._regex.findall(caption_text)
             if len(keywords_found) > 0:
                 blocks_found.append(block)
         if len(blocks_found) > 0 or self.generic_keywords_file_path is None:
@@ -85,7 +90,10 @@ class BlockFinder(BaseModel):
             for block in blocks:
                 keywords_found: List[str] = []
                 if block["type"] in blocks_set:
-                    keywords_found = self._generic_regex.findall(block["caption"])
+                    caption_text: str = block.get("caption", block.get("legend", ""))
+                    if caption_text is None:
+                        caption_text = ""
+                    keywords_found = self._generic_regex.findall(caption_text)
                 if len(keywords_found) > 0:
                     blocks_found.append(block)
         return {"blocks" : blocks_found, "doi": doi}

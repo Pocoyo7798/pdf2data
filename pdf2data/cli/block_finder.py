@@ -1,11 +1,19 @@
 import os
 from typing import Any, Dict, List
 import json
-from pdf2data.support import get_doc_list
 
 import click
 
 from pdf2data.keywords import BlockFinder
+
+
+def get_doc_list(folder_path: str, file_format: str) -> List[str]:
+    """Return all entries in a folder matching a suffix."""
+    all_docs: List[str] = []
+    for entry in os.listdir(folder_path):
+        if entry.endswith(file_format):
+            all_docs.append(entry)
+    return all_docs
 
 @click.command()
 @click.argument("input_folder", type=str)
